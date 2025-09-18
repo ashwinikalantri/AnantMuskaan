@@ -47,7 +47,7 @@ withProgress(message = 'Data update in progress',
                    odbc::odbc(),
                    Driver = "PostgreSQL",
                    Server = Sys.getenv("DB_HOST"),
-                   Database = "anantmuskaan",
+                   Database = Sys.getenv("DB_NAME"),
                    UID = Sys.getenv("DB_USER"),
                    PWD = Sys.getenv("DB_PASS"),
                    Port = 5432

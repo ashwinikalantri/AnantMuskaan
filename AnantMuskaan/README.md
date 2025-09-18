@@ -1,5 +1,5 @@
 # Instruction for setup
-A database needs to be setup which will store the data locally. The configurations here are for a Postgres database.
+A database needs to be setup which will store the data locally. The configurations and code in this repo are for a Postgres database.
 
 The following variables needs to be saved in the Environment:
 

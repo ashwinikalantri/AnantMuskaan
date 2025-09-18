@@ -145,6 +145,7 @@ server <- function(input, output) {
         ~ replace_na(., 0)
       ))
   })
+  
   ##Date range data ####
   data_date_range <- reactive({
     d2 %>%

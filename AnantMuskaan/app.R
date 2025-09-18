@@ -50,7 +50,7 @@ ui <- page_fluid(
           value = Sys.Date() - 1,
           max = Sys.Date() - 1,
           min = as.Date("2025-07-01"),
-          dateFormat = "M yyyy",
+          dateFormat = "MMM yyyy",
           autoClose = TRUE
         )
       ),
@@ -357,7 +357,7 @@ server <- function(input, output) {
       cols_width(contains("_") ~ pct(15))
   })
   
-  ## range Activities ####
+  ## Range Activities ####
   output$range_act_table <- render_gt({
     data_date_range() %>%
       mutate(lab = "activity") %>%

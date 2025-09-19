@@ -387,6 +387,7 @@ server <- function(input, output, session) {
       
       
       range_table <- range_data %>%
+        arrange(entry) %>% 
         group_by(block) %>%
         gt(rowname_col = "entry") %>%
         tab_header(
@@ -502,6 +503,7 @@ server <- function(input, output, session) {
                     rename_with(~ paste0(.x, "_P"), everything()))
       
       range_act_table <- range_data_act %>%
+        arrange(activity) %>% 
         group_by(block) %>%
         gt(rowname_col = "activity") %>%
         tab_header(

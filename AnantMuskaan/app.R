@@ -13,10 +13,18 @@ ui <- page_fluid(
   card(layout_columns(
     card(checkboxGroupInput("block_list", "Select Block", choices = NA)),
     card(
-      checkboxGroupInput("area_type_list", "Select Area", choices = NA)
+      checkboxGroupInput("area_type_list",
+                         "Select Area",
+                         choices = c("Rural" = "R", "Urban" = "U"),
+                         selected = c("R","U")
+                         )
     ),
     card(
-      checkboxGroupInput("school_type_list", "Select School Type", choices = NA)
+      checkboxGroupInput("school_type_list", "Select School Type",
+                         choices = c("Gov School" = "GS",
+                                     "Gov Aided" = "GA",
+                                     "Pvt School" = "PS"),
+                         selected = c("GS","GA","PS"))
     )
   )),
   navset_card_tab(
@@ -78,20 +86,6 @@ server <- function(input, output, session) {
       "block_list",
       choices = unique(d1$block),
       selected = unique(d1$block)
-    )
-    
-    updateCheckboxGroupInput(
-      session,
-      "area_type_list",
-      choices = unique(d1$area_type),
-      selected = unique(d1$area_type)
-    )
-    
-    updateCheckboxGroupInput(
-      session,
-      "school_type_list",
-      choices = unique(d1$school_type),
-      selected = unique(d1$school_type)
     )
     
   })

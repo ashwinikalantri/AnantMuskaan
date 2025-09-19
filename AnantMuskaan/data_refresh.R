@@ -1,6 +1,7 @@
 library(DBI)
 library(REDCapR)
 library(dplyr)
+library(RSQLite)
 
 withProgress(message = 'Data update in progress',
              detail = 'This may take a while...',
@@ -26,8 +27,9 @@ withProgress(message = 'Data update in progress',
                d1 <- data %>%
                  filter(is.na(redcap_repeat_instrument)) %>%
                  select(record_id, site, area_type, school_type, school1) %>%
-                 left_join(block_lab, by = join_by(record_id)) %>%
-                 rename(block = block1)
+                 left_join(block_lab %>% select(record_id, block1), by = join_by(record_id)) %>%
+                 rename(block = block1,
+                        school = school1)
                
                incProgress(10 / 100, detail = "Activity Data")
                ### Activity Data ####
@@ -40,19 +42,14 @@ withProgress(message = 'Data update in progress',
                    activity_date,
                    brush_activity_1_5,
                    first_to_fifth_participants
-                 )
+                 ) %>% 
+                 rename(brush_activity = brush_activity_1_5,
+                        participants = first_to_fifth_participants) %>% 
+                 mutate(participants = as.numeric(participants))
                
-               amdb <-
-                 DBI::dbConnect(
-                   odbc::odbc(),
-                   Driver = "PostgreSQL",
-                   Server = Sys.getenv("DB_HOST"),
-                   Database = Sys.getenv("DB_NAME"),
-                   UID = Sys.getenv("DB_USER"),
-                   PWD = Sys.getenv("DB_PASS"),
-                   Port = 5432
-                 )
+               conn <- dbConnect(RSQLite::SQLite(), Sys.getenv("DB_PATH"))
+               
                incProgress(20 / 100, detail = "Storing Data")
-               dbWriteTable(amdb, "school", d1, overwrite = TRUE)
-               dbWriteTable(amdb, "activities", d2, overwrite = TRUE)
+               dbWriteTable(conn, "school", d1, overwrite = TRUE)
+               dbWriteTable(conn, "activities", d2, overwrite = TRUE)
              })

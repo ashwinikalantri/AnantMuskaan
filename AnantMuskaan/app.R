@@ -5,6 +5,7 @@ library(gt)
 library(dplyr)
 library(tidyr)
 library(lubridate)
+library(RSQLite)
 
 ui <- page_fluid(
   titlePanel("Anant Muskaan"),
@@ -116,18 +117,18 @@ server <- function(input, output) {
       select(
         record_id,
         task_schedule_date,
-        brush_activity_1_5,
-        first_to_fifth_participants
+        brush_activity,
+        participants
       ) %>%
-      mutate(brush_activity_1_5 = case_when(brush_activity_1_5 == 1 ~ 1, brush_activity_1_5 == 2 ~ 0)) %>%
+      mutate(brush_activity = case_when(brush_activity == 1 ~ 1, brush_activity == 2 ~ 0)) %>%
       summarise(
         entry = n(),
-        participants = sum(as.numeric(first_to_fifth_participants), na.rm = T),
-        activity = sum(brush_activity_1_5, na.rm = T)
+        participants = sum(as.numeric(participants), na.rm = T),
+        activity = sum(brush_activity, na.rm = T)
       ) %>%
       right_join(
         d1 %>%
-          dplyr::select(record_id, school1, block, area_type, school_type),
+          dplyr::select(record_id, school, block, area_type, school_type),
         by = join_by(record_id)
       ) %>%
       ungroup() %>%
@@ -160,18 +161,18 @@ server <- function(input, output) {
       select(
         record_id,
         task_schedule_date,
-        brush_activity_1_5,
-        first_to_fifth_participants
+        brush_activity,
+        participants
       ) %>%
-      mutate(brush_activity_1_5 = case_when(brush_activity_1_5 == 1 ~ 1, brush_activity_1_5 == 2 ~ 0)) %>%
+      mutate(brush_activity = case_when(brush_activity == 1 ~ 1, brush_activity == 2 ~ 0)) %>%
       summarise(
         entry = n(),
-        participants = sum(as.numeric(first_to_fifth_participants), na.rm = T),
-        activity = sum(brush_activity_1_5, na.rm = T)
+        participants = sum(as.numeric(participants), na.rm = T),
+        activity = sum(brush_activity, na.rm = T)
       ) %>%
       right_join(
         d1 %>%
-          dplyr::select(record_id, school1, block, area_type, school_type),
+          dplyr::select(record_id, school, block, area_type, school_type),
         by = join_by(record_id)
       ) %>%
       ungroup() %>%
@@ -199,7 +200,7 @@ server <- function(input, output) {
       count(name = "Visits") %>%
       right_join(
         d1 %>%
-          dplyr::select(record_id, school1, block, area_type, school_type),
+          dplyr::select(record_id, school, block, area_type, school_type),
         by = join_by(record_id)
       ) %>%
       ungroup() %>%
@@ -460,11 +461,11 @@ server <- function(input, output) {
   output$range_noent_table <- render_gt({
     data_date_range() %>%
       filter(activity == 0) %>%
-      select(ID, block, school1, entry) %>%
+      select(ID, block, school, entry) %>%
       group_by(block) %>%
       gt(rowname_col = "ID") %>%
       cols_label(block = "Block",
-                 school1 = "School",
+                 school = "School",
                  entry = "No of Entries") %>%
       tab_style(style = cell_text(weight = "bold", align = "center"),
                 locations = cells_row_groups()) %>%

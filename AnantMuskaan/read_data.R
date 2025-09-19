@@ -11,6 +11,3 @@ d2 <- dbReadTable(conn, "activities") %>%
     task_schedule_date = as.Date(task_schedule_date),
     activity_date = as.Date(activity_date)
     )
-
-str(d1)
-str(d2)

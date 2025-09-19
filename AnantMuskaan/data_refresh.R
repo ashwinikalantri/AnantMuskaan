@@ -47,9 +47,30 @@ withProgress(message = 'Data update in progress',
                         participants = first_to_fifth_participants) %>% 
                  mutate(participants = as.numeric(participants))
                
+               incProgress(20 / 100, detail = "Storing Data")
                conn <- dbConnect(RSQLite::SQLite(), Sys.getenv("DB_PATH"))
                
-               incProgress(20 / 100, detail = "Storing Data")
+               if (!dbExistsTable(conn, "school")) {
+                 dbCreateTable(conn, "school", list(
+                   record_id = "TEXT",
+                   site = "TEXT",
+                   area_type = "TEXT",
+                   school_type = "TEXT",
+                   school = "TEXT",
+                   block = "TEXT"
+                 ))
+               }
+               
+               if (!dbExistsTable(conn, "activities")) {
+                 dbCreateTable(conn, "activities", list(
+                   record_id = "TEXT",
+                   task_start_date = "TEXT",
+                   task_schedule_date = "TEXT",
+                   activity_date = "TEXT",
+                   brush_activity = "INTEGER",
+                   participants = "INTEGER"
+                 ))
+               }
                dbWriteTable(conn, "school", d1, overwrite = TRUE)
                dbWriteTable(conn, "activities", d2, overwrite = TRUE)
              })

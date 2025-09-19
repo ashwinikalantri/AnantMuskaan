@@ -63,6 +63,7 @@ ui <- page_fluid(
 )
 
 server <- function(input, output) {
+  
   source("read_data.R")
   
   output$updateData <- renderText({

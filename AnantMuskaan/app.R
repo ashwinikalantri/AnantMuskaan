@@ -9,23 +9,23 @@ library(RSQLite)
 
 ui <- page_fluid(
   titlePanel("Anant Muskaan"),
-  navset_pill(
-    nav_panel("Daily Data", sidebarPanel(
+  navset_card_tab(
+    nav_panel("Daily Data", card(
       dateInput(
         inputId = "daily_date",
-        label = h3("Date input"),
+        label = "Select Date",
         value = Sys.Date() - 1,
         max = Sys.Date() - 1,
         min = as.Date("2025-07-01"),
         format = "dd M yyyy"
       )
-    ), mainPanel(gt_output("daily_table"))),
+    ), card(gt_output("daily_table"))),
     nav_panel(
       "Date Range Data",
-      sidebarPanel(
+      card(
         dateRangeInput(
           inputId = "range_date",
-          label = h3("Select Date Range"),
+          label = "Select Date Range",
           start = Sys.Date() - 7,
           end = Sys.Date() - 1,
           max = Sys.Date() - 1,
@@ -34,18 +34,18 @@ ui <- page_fluid(
           format = "dd M yyyy"
         )
       ),
-      mainPanel(navset_card_pill(
+      navset_card_tab(
         nav_panel("Entries", gt_output("range_ent_table")),
         nav_panel("Activities", gt_output("range_act_table")),
         nav_panel("No Entries", gt_output("range_noent_table"))
-      ))
+      )
     ),
     nav_panel(
       "Monthly Data",
-      sidebarPanel(
+      card(
         airDatepickerInput(
           inputId = "month_date",
-          label = h3("Date input"),
+          label = "Select Month",
           view = "months",
           minView = "months",
           value = Sys.Date() - 1,
@@ -55,9 +55,11 @@ ui <- page_fluid(
           autoClose = TRUE
         )
       ),
-      mainPanel(gt_output("monthly_table"))
+      card(gt_output("monthly_table"))
     ),
-    fluidRow(uiOutput("updateData"))
+    card_footer(
+        uiOutput("updateData")
+      )
   ),
   id = "tab"
 )
@@ -76,7 +78,7 @@ server <- function(input, output) {
       ), 0) > 0) {
         actionLink("updData", label = "", icon = icon("redo"))
       },
-      "</p>"
+      "<br>",year(Sys.Date())," © Mahatma Gandhi Institute of Medical Sciences</p>"
     )
   })
   

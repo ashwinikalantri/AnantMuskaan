@@ -18,7 +18,7 @@
 - RedCap API key
 
 ## Setup
-Copy the files `app.R`, `data_refresh.R` and `read_data.R` from [Anant Muskaan Repo](https://github.com/ashwinikalantri/AnantMuskaan/tree/main/AnantMuskaan), and place them in a single folder.
+Copy the files `app.R`, `data_refresh.R` and `read_data.R` from [Anant Muskaan Repo](https://github.com/ashwinikalantri/AnantMuskaan/), and place them in a single folder.
 
 
 ## Setup Environment variables
@@ -53,3 +53,6 @@ On first run, the app will create a new database file `anantmuskaan.sqlite`. Thi
 
 ## Data Update
 The app will automatically get new data of it doesnt have the latest data. This could also be manually done by clicking the ![](arrow-rotate-right.png) icon (only visible if data is stale) on the footer. 
+
+## Support and suggestions
+Create an Issue [here](https://github.com/ashwinikalantri/AnantMuskaan/issues)

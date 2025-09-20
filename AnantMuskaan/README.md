@@ -52,4 +52,4 @@ DB_PATH = "anantmuskaan.sqlite"
 On first run, the app will create a new database file `anantmuskaan.sqlite`. This file will store some of the data from the Anant Muskaan Redcap Project.
 
 ## Data Update
-The app will automatically get new data of it doesnt have the latest data. This could also be manually done by clicking the `icon("redo")` icon (only visible if data is stale) on the footer. 
+The app will automatically get new data of it doesnt have the latest data. This could also be manually done by clicking the ![](arrow-rotate-right.png) icon (only visible if data is stale) on the footer. 

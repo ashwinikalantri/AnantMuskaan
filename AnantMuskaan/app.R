@@ -77,6 +77,10 @@ ui <- page_fluid(
 )
 
 server <- function(input, output, session) {
+  if (round(difftime(Sys.Date(), max(d2$task_schedule_date, na.rm = T), units = "days"), 0) > 0) {
+    source("data_refresh.R")
+  }
+  
   source("read_data.R")
   
   ## Update inputs ####

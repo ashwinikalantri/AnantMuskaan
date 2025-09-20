@@ -57,5 +57,8 @@ The app will automatically get new data of it doesn't have the latest data. This
 ## Data Privacy
 The app will pull some of the Redcap data from the Anant Muskaan project. It will also store these data. Make sure that the data is handled in compliance with the data protection laws. One on them being not hosting it on servers outside the country.
 
+## Hosting Options
+Due to the above mentioned data privacy concerns, hosting data on free to use public servers [Shinyapps.io](https://www.shinyapps.io) is best avoided. The app can run locally on a PC or Mac. But is more useful when hosted on a server accessible to all team members. Hosting it on a [Shiny Server](https://posit.co/products/open-source/shiny-server/) under your control is the best, but technical option. 
+
 ## Support and suggestions
 Create an Issue [here](https://github.com/ashwinikalantri/AnantMuskaan/issues)

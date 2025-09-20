@@ -77,8 +77,9 @@ ui <- page_fluid(
 )
 
 server <- function(input, output, session) {
-  if (round(difftime(Sys.Date(), max(d2$task_schedule_date, na.rm = T), units = "days"), 0) > 0) {
-    source("data_refresh.R")
+  
+  if(!file.exists(Sys.getenv("DB_PATH"))) {
+      source("data_refresh.R")
   }
   
   source("read_data.R")
@@ -116,7 +117,7 @@ server <- function(input, output, session) {
       text = paste0(
         "The data is ",
         round(difftime(
-          Sys.Date() - 1, max(d2$task_schedule_date, na.rm = T), units = "days"
+          Sys.Date(), max(d2$task_schedule_date, na.rm = T), units = "days"
         ), 0),
         " days old. Do you want to update this data? This may take some time."
       ),

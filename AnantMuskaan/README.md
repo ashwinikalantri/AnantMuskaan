@@ -8,4 +8,4 @@ The following variables needs to be saved in the Environment:
 
 
 ## Database
-- Sys.setenv("DB_PATH") <- "anantmuskaan.sqlite"
+- Sys.setenv("DB_PATH" = "anantmuskaan.sqlite")

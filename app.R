@@ -43,8 +43,9 @@ dbExecute(
 )
 
 ui <- page_fluid(
-  titlePanel("Anant Muskaan"),
-  card(layout_columns(
+  card(
+    card_header(h4("Anant Muskaan")),
+    layout_columns(
     card(checkboxGroupInput("block_list", "Select Block", choices = NA)),
     card(
       checkboxGroupInput(

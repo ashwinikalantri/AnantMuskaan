@@ -7,9 +7,12 @@ withProgress(message = 'Data update in progress',
              detail = 'This may take a while...',
              value = 0,
              {
+               
+               conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
                ## Data Download ####
-               token <- Sys.getenv("API_KEY")
-               url <- Sys.getenv("REDCAP_URL")
+               token <- dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'")$value[1]
+               
+               url <- "https://nhrp-rdp.icmr.org.in/api/"
                
                incProgress(30 / 100, detail = "Downloading Redcap Data")
                data <- REDCapR::redcap_read(redcap_uri = url, token = token)$data
@@ -48,7 +51,6 @@ withProgress(message = 'Data update in progress',
                  mutate(participants = as.numeric(participants))
                
                incProgress(20 / 100, detail = "Storing Data")
-               conn <- dbConnect(RSQLite::SQLite(), Sys.getenv("DB_PATH"))
                
                if (!dbExistsTable(conn, "school")) {
                  dbCreateTable(conn, "school", list(
@@ -73,4 +75,5 @@ withProgress(message = 'Data update in progress',
                }
                dbWriteTable(conn, "school", d1, overwrite = TRUE)
                dbWriteTable(conn, "activities", d2, overwrite = TRUE)
+               
              })

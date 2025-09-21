@@ -164,11 +164,9 @@ server <- function(input, output, session) {
   
   
   if (nrow(key_from_db) > 0) {
-    # Key found in DB: Populate the reactive value
     message("API key found in database.")
     api_key(key_from_db$value[1])
   } else {
-    # Key not found: Prompt the user immediately
     message("API key not found. Prompting user.")
     prompt_for_key()
   }
@@ -213,7 +211,6 @@ server <- function(input, output, session) {
         actionLink(
           "updateAPI",
           label = "Update API Key",
-          #style = "height: 25px;",
           icon = icon("rotate")
           ),
         "<br>",

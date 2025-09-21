@@ -9,21 +9,56 @@ withProgress(message = 'Data update in progress',
              {
                
                conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
+               
                ## Data Download ####
                token <- dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'")$value[1]
                
                url <- "https://nhrp-rdp.icmr.org.in/api/"
                
                incProgress(30 / 100, detail = "Downloading Redcap Data")
-               data <- REDCapR::redcap_read(redcap_uri = url, token = token)$data
+               
+               tryCatch({
+                 redcap_result <- REDCapR::redcap_read(redcap_uri = url, token = token)
+                 
+                 if (redcap_result$success) {
+                   data <- redcap_result$data
+                   message("Successfully read ", nrow(data), " rows from REDCap.")
+                 } else {
+                   warning("REDCap API call did not succeed. Message: ", redcap_result$outcome_message)
+                 }
+                 
+               }, error = function(e) {
+                 message("An error occurred while fetching data from REDCap.")
+                 warning("REDCap Error: ", e$message)
+                 showNotification(paste("REDCap Error: ", e$message),
+                                  type = "error")
+                   
+               })
+               
                
                incProgress(30 / 100, detail = "Downloading Labels")
-               block_lab <- REDCapR::redcap_read(
-                 redcap_uri = url,
-                 token = token,
-                 raw_or_label = "label",
-                 fields = c("block1")
-               )$data
+               
+               tryCatch({
+                 redcap_result_b <- REDCapR::redcap_read(redcap_uri = url,
+                                                       token = token,
+                                                       raw_or_label = "label",
+                                                       fields = c("block1")
+                                                       )
+                 
+                 if (redcap_result_b$success) {
+                   block_lab <- redcap_result_b$data
+                   message("Successfully read ", nrow(block_lab), " rows from REDCap.")
+                 } else {
+                   warning("REDCap API call did not succeed. Message: ", redcap_result_b$outcome_message)
+                 }
+                 
+               }, error = function(e) {
+                 message("An error occurred while fetching data from REDCap.")
+                 warning("REDCap Error: ", e$message)
+                 showNotification(paste("REDCap Error: ", e$message),
+                                  type = "error")
+               })
+               
                
                incProgress(10 / 100, detail = "School Data")
                ### School Data ####

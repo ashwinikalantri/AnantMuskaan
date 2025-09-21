@@ -128,38 +128,40 @@ server <- function(input, output, session) {
       text = "Please enter your Redcap API key to continue.",
       type = "input",
       inputType = "password",
-      # Hides the key as the user types
       callbackR = save_key_and_proceed,
       showConfirmButton = TRUE,
-      #callbackJS = "function(x){ if(x !== false) { shinyalert.close(); } }",
-      # Close alert on OK
-      session = session # MUST pass the session object for callbackR
+      session = session
     )
   }
   
   save_key_and_proceed <- function(key_from_input) {
-    # Only proceed if the user clicked "Ok" and entered a value
+    
+    
     if (!is.null(key_from_input) &&
-        key_from_input != FALSE && nzchar(key_from_input)) {
-      # Use a parameterized query to safely insert/update the key
+        key_from_input != FALSE && 
+        nzchar(key_from_input) &&
+        grepl("^([0-9A-Fa-f]{32})(?:\n)?$",key_from_input)) {
+      
       dbExecute(
         conn,
         "INSERT OR REPLACE INTO settings (name, value) VALUES ('api_key', ?)",
         params = list(key_from_input)
       )
       
-      # IMPORTANT: Update the reactive value. This "unlocks" the rest of the app.
       api_key(key_from_input)
       
       shinyalert("Success!", "API Key has been saved.", type = "success")
     } else {
-      shinyalert("Cancelled",
-                 "You must provide an API key to use the app.",
-                 type = "error")
+      
+      shinyalert("Cancelled", "You must provide a correct API key to use the app.", type = "error")
+      
+      prompt_for_key()
     }
   }
   
   key_from_db <- dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'")
+  
+  
   
   if (nrow(key_from_db) > 0) {
     # Key found in DB: Populate the reactive value
@@ -179,7 +181,7 @@ server <- function(input, output, session) {
     source("read_data.R")
     
     if (round(difftime(Sys.Date() - 1, max(d2$task_schedule_date, na.rm = T), units = "days"), 0) > 0) {
-      source("data_refresh.R")
+      source("data_refresh.R", local = TRUE)
     }
     
     

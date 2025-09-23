@@ -22,10 +22,10 @@ Copy the files `app.R`, `data_refresh.R` and `read_data.R` from [Anant Muskaan R
 
 ## First Run
 - On first run, the app will create a new local database file `anantmuskaan.sqlite`. This will store some of the data from the Anant Muskaan Redcap Project in this data.
-- You will be prompted to enter the Redcap API key. This will be stored in the local database. To change the API Key, use the `Change API Key` link in the footer.
+- You will be prompted to enter the Redcap API key. This will be stored in the local database. To change the API Key, use the ![](assets/rotate.png) **Change API Key** link in the footer.
 
 ## Data Update
-The app will automatically get new data of it doesn't have the latest data. This could also be manually done by clicking the ![](assets/reload.png) icon (only visible if data is stale) on the footer. 
+The app will automatically get new data of it doesn't have the latest data. This could also be manually done by clicking the ![](assets/reload.png) **Update Data** link on the footer. 
 
 ## Data Privacy
 The app will pull some of the Redcap data from the Anant Muskaan project. It will also store these data. Make sure that the data is handled in compliance with the data protection laws. One on them being not hosting it on servers outside the country.

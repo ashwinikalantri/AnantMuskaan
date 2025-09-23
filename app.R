@@ -9,6 +9,7 @@ library(RSQLite)
 library(stringr)
 library(shinyalert)
 library(DBI)
+library(DT)
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -160,7 +161,9 @@ server <- function(input, output, session) {
       
       shinyalert("Cancelled", "You must provide a correct API key to use the app.", type = "error")
       
-      prompt_for_key()
+      if(isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'"))) {
+        prompt_for_key() 
+      }
     }
   }
   
@@ -204,15 +207,9 @@ server <- function(input, output, session) {
       paste0(
         "<p style='text-align:center;'>",
         "Data available till ",
-        format(max(d2$task_schedule_date, na.rm = T), "%d %B %Y"),
-        if (round(difftime(
-          Sys.Date() - 1,
-          max(d2$task_schedule_date, na.rm = T),
-          units = "days"
-        ), 0) > 0) {
-          actionLink("updData", label = "", icon = icon("redo"))
-        },
-        "<br>",
+        format(max(d2$task_schedule_date, na.rm = T), "%d %B %Y"), "<br>",
+        actionLink("updData", label = "Update Data", icon = icon("redo")),
+        " | ",
         actionLink(
           "updateAPI",
           label = "Update API Key",

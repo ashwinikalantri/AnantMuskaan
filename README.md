@@ -18,7 +18,7 @@
 - RedCap API key
 
 ## Setup
-Copy the files `app.R`, `data_refresh.R` and `read_data.R` from [Anant Muskaan Repo](https://github.com/ashwinikalantri/AnantMuskaan/), and place them in a single folder.
+Copy the files `app.R`, `data_refresh.R` and `read_data.R` from [Anant Muskaan Repo](https://github.com/ashwinikalantri/AnantMuskaan/releases/latest), and place them in a single folder.
 
 ## First Run
 - On first run, the app will create a new local database file `anantmuskaan.sqlite`. This will store some of the data from the Anant Muskaan Redcap Project in this data.

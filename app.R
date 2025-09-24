@@ -530,12 +530,6 @@ server <- function(input, output, session) {
           tab_spanner(columns = starts_with("U_"), label = "Urbal") %>%
           sub_missing(missing_text = 0) %>%
           fmt_percent(columns = ends_with("_P")) %>%
-          # cols_merge(columns = c(R_GA_entry, R_GA_P), pattern = "{1} <br><small>{2}</small>") %>%
-          # cols_merge(columns = c(R_GS_entry, R_GS_P), pattern = "{1} <br><small>{2}</small>") %>%
-          # cols_merge(columns = c(R_PS_entry, R_PS_P), pattern = "{1} <br><small>{2}</small>") %>%
-          # cols_merge(columns = c(U_GA_entry, U_GA_P), pattern = "{1} <br><small>{2}</small>") %>%
-          # cols_merge(columns = c(U_GS_entry, U_GS_P), pattern = "{1} <br><small>{2}</small>") %>%
-          # cols_merge(columns = c(U_PS_entry, U_PS_P), pattern = "{1} <br><small>{2}</small>") %>%
           tab_style(style = cell_text(weight = "bold", align = "center"),
                     locations = cells_row_groups()) %>%
           cols_align(align = "center", columns = everything()) %>%
@@ -632,7 +626,11 @@ server <- function(input, output, session) {
           select(block, activity) %>%
           bind_cols(range_data_act %>% .$n) %>%
           bind_cols(range_data_act %>% .$per %>%
-                      rename_with( ~ paste0(.x, "_P"), everything()))
+                      rename_with( ~ paste0(.x, "_P"), everything())) %>% 
+          relocate(ends_with("_activity"), .after = last_col()) %>% 
+          relocate(ends_with("_activity_P"), .after = last_col()) %>% 
+          relocate(ends_with("_participants"), .after = last_col()) %>% 
+          relocate(ends_with("_participants_P"), .after = last_col())
         
         range_act_table <- range_data_act %>%
           arrange(activity) %>%
@@ -682,14 +680,16 @@ server <- function(input, output, session) {
           ) %>%
           cols_width(contains("_") ~ pct(15))
         
-        for (i in names(range_data_act)[names(range_data_act) %in% groups_range]) {
+        cols <- word(
+          names(range_data_act)[names(range_data_act) %in% groups_range],
+          start = 1,
+          end = -2,
+          sep = "_"
+        ) %>% unique()
+        
+        for (i in cols) {
           range_act_table <- range_act_table %>%
-            cols_merge(columns = starts_with(word(
-              i,
-              start = 1,
-              end = -2,
-              sep = "_"
-            )), pattern = "{1} ({3})<br><small>{2} Participants</small>")
+            cols_merge(columns = starts_with(i), pattern = "{1} ({2})<br><small>{3} Participants ({4})</small>")
         }
       } else {
         range_act_table <- data.frame() %>% gt()

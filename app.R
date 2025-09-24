@@ -719,56 +719,19 @@ server <- function(input, output, session) {
           select(ID, block, school, entry) %>%
           group_by(block) %>%
           datatable(
+            extensions = 'Buttons',
             options = list(
-              scrollX = FALSE,
-              scrollY = FALSE
-              # paging = FALSE
+              dom = 'Bfrtip',
+              buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
             ),
             rownames = FALSE,
-            colnames = c('ID', 'School', 'Entries')
+            colnames = c('ID', "Block",'School', 'Entries')
           )
-          # gt(rowname_col = "ID") %>%
-          # cols_label(block = "Block",
-          #            school = "School",
-          #            entry = "No of Entries") %>%
-          # tab_style(style = cell_text(weight = "bold", align = "center"),
-          #           locations = cells_row_groups()) %>%
-          # cols_align(align = "center", columns = everything()) %>%
-          # tab_options(
-          #   table.width = pct(95),
-          #   heading.border.bottom.color = "black",
-          #   column_labels.font.size = "12px",
-          #   column_labels.font.weight = "bold",
-          #   column_labels.border.bottom.color = "black",
-          #   grand_summary_row.border.color = "black",
-          #   row_group.border.top.color = "black",
-          #   row_group.border.bottom.color = "black",
-          #   stub.border.color = "black"
-          # ) %>%
-          # opt_table_outline(color = "black") %>%
-          # tab_style(
-          #   style = cell_borders(
-          #     sides = c("top", "bottom"),
-          #     color = "black",
-          #     weight = px(1.5),
-          #     style = "solid"
-          #   ),
-          #   locations = list(cells_body(), cells_stub())
-          # ) %>%
-          # tab_header(
-          #   title = paste0("Anant Muskan MyCap"),
-          #   subtitle = paste0(
-          #     "Schools with No Activities conducted from ",
-          #     format(input$range_date[[1]], "%d %b"),
-          #     " to ",
-          #     format(input$range_date[[2]], "%d %b")
-          #   )
-          # )
       } else {
-        no_ent_table <- data.frame(Message = "No Data") %>% datatable()#gt()
+        no_ent_table <- data.frame(Message = "No Data") %>% datatable()
       }
       no_ent_table
-    })
+    }, server = FALSE)
     
     ## Table: Monthly ####
     output$monthly_table <- render_gt({

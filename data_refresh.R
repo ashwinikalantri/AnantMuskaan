@@ -61,6 +61,7 @@ withProgress(message = 'Data update in progress',
                
                
                incProgress(10 / 100, detail = "School Data")
+               
                ### School Data ####
                d1 <- data %>%
                  filter(is.na(redcap_repeat_instrument)) %>%
@@ -70,6 +71,7 @@ withProgress(message = 'Data update in progress',
                         school = school1)
                
                incProgress(10 / 100, detail = "Activity Data")
+               
                ### Activity Data ####
                d2 <- data %>%
                  filter(redcap_repeat_instrument == "implementation_status") %>%
@@ -110,5 +112,10 @@ withProgress(message = 'Data update in progress',
                }
                dbWriteTable(conn, "school", d1, overwrite = TRUE)
                dbWriteTable(conn, "activities", d2, overwrite = TRUE)
+               dbExecute(
+                 conn,
+                 "INSERT OR REPLACE INTO settings (name, value) VALUES ('last_update', ?)",
+                 params = list(Sys.time())
+               )
                
              })

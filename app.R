@@ -10,6 +10,7 @@ library(stringr)
 library(shinyalert)
 library(DBI)
 library(DT)
+library(fontawesome)
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -99,7 +100,7 @@ ui <- page_fluid(
         nav_panel("Entries", gt_output("range_ent_table")),
         nav_panel("Activities", gt_output("range_act_table")),
         nav_panel("No Activities", 
-                  dataTableOutput(
+                  DTOutput(
                     "range_noent_table", 
                     height = "100%"
                     ))
@@ -192,8 +193,14 @@ server <- function(input, output, session) {
     
     source("read_data.R")
     
-    if (difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours") > 24) {
-      source("data_refresh.R", local = TRUE)
+    if (!isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)) {
+        source("data_refresh.R", local = TRUE)
+    } else {
+      if (difftime(Sys.time(), as.POSIXct(as.numeric(
+        dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value
+      )), units = "hours") > 24) {
+        source("data_refresh.R", local = TRUE)
+      }
     }
     
     
@@ -726,7 +733,7 @@ server <- function(input, output, session) {
     })
     
     ## Table: Range No Entries ####
-    output$range_noent_table <- renderDataTable({
+    output$range_noent_table <- renderDT({
       validate(
         need(input$block_list, "Please select at least one Block."),
         need(
@@ -746,13 +753,30 @@ server <- function(input, output, session) {
           select(ID, block, school, entry) %>%
           group_by(block) %>%
           datatable(
+            rownames = FALSE,
+            colnames = c('ID', "Block",'School', 'Entries'),
             extensions = 'Buttons',
             options = list(
               dom = 'Bfrtip',
-              buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
-            ),
-            rownames = FALSE,
-            colnames = c('ID', "Block",'School', 'Entries')
+              buttons = list(
+                c('copy'),
+                list(
+                  extend = "print",
+                  title = "Anant Muskaan - Schools with no Activities"
+                  ),
+                list(
+                  extend = 'collection',
+                  buttons = list(
+                    list(
+                      extend = "pdf",
+                      title = "Anant Muskaan - Schools with no Activities",
+                      filename = "AM_no_act"
+                    ),
+                    list(extend = "excel", filename = "AM_no_act")),
+                  text = 'Download'
+                )
+                )
+            )
           )
       } else {
         no_ent_table <- data.frame(Message = "No Data") %>% datatable()

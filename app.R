@@ -10,7 +10,7 @@ library(stringr)
 library(shinyalert)
 library(DBI)
 library(DT)
-
+library(fontawesome)
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
 dbExecute(conn,
@@ -79,7 +79,8 @@ ui <- page_fluid(
         min = as.Date("2025-07-01"),
         format = "dd M yyyy"
       )
-    ), card(gt_output("daily_table"))),
+    ), 
+    card(gt_output("daily_table"))),
     nav_panel(
       "Date Range Data",
       card(
@@ -104,25 +105,30 @@ ui <- page_fluid(
                     ))
       )
     ),
-    nav_panel("Monthly Data", card(
-      airDatepickerInput(
-        inputId = "month_date",
-        label = "Select Month",
-        view = "months",
-        minView = "months",
-        value = Sys.Date() - 1,
-        max = Sys.Date() - 1,
-        min = as.Date("2025-07-01"),
-        dateFormat = "MMM yyyy",
-        autoClose = TRUE
-      )
-    ), card(gt_output("monthly_table"))),
-    card_footer(uiOutput("updateData"))
+    nav_panel("Monthly Data",
+              card(
+                airDatepickerInput(
+                  inputId = "month_date",
+                  label = "Select Month",
+                  view = "months",
+                  minView = "months",
+                  value = Sys.Date() - 1,
+                  max = Sys.Date() - 1,
+                  min = as.Date("2025-07-01"),
+                  dateFormat = "MMM yyyy",
+                  autoClose = TRUE
+                )
+              ), card(gt_output("monthly_table"))
+              ),
+    card_footer(
+      uiOutput("updateData")
+    )
   ),
   id = "tab"
 )
 
 server <- function(input, output, session) {
+
   api_key <- reactiveVal(NULL)
   
   prompt_for_key <- function() {
@@ -190,8 +196,7 @@ server <- function(input, output, session) {
       source("data_refresh.R", local = TRUE)
     }
     
-    
-    
+
     ## Update inputs ####
     observe({
       updateCheckboxGroupInput(
@@ -203,25 +208,44 @@ server <- function(input, output, session) {
       
     })
     
-    output$updateData <- renderText({
-      paste0(
-        "<p style='text-align:center;'>",
-        "Data available till ",
-        format(max(d2$task_schedule_date, na.rm = T), "%d %B %Y"), "<br>",
-        actionLink("updData", label = "Update Data", icon = icon("redo")),
-        " | ",
-        actionLink(
-          "updateAPI",
-          label = "Update API Key",
-          icon = icon("rotate")
+    
+    output$updateData <- renderUI({
+      if (as.Date(max(d2$task_schedule_date, na.rm = T)) < Sys.Date()) {
+        color <- "#fc9090" # red
+      } else {
+        color <- "#50C878" # green
+      }
+      p(
+        style = paste0('text-align:center;'),
+        tooltip( 
+          fa(
+            name = "circle",
+            fill = color,
+            prefer_type = "solid"
           ),
-        "<br>",
-        year(Sys.Date()),
-        " © Mahatma Gandhi Institute of Medical Sciences</p>"
+          paste0("Data is ",if(color == "#50C878") {"fresh"} else {"stale"}), 
+          placement = "top" 
+        ),
+        paste0("Data available till ", format(
+          max(d2$task_schedule_date, na.rm = T), "%d %B %Y"
+        ), "  "),
+        actionLink("updData", label = "Update Data", icon = icon("redo")),
+        br(),
+        paste0(
+          "API Key: ",
+          str_replace(api_key(), "(?<=^.{4}).*(?=.{4}$)", " * * * * "),
+          "  "
+        ),
+        actionLink("updateAPI", label = "Update API Key", icon = icon("rotate")),
+        br(),
+        paste0(
+          year(Sys.Date()),
+          " © Mahatma Gandhi Institute of Medical Sciences"
+        )
       )
     })
     
-    observeEvent(input$updateAPI,{
+    observeEvent(input$updateAPI, {
       prompt_for_key()
     })
     

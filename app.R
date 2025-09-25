@@ -10,7 +10,7 @@ library(stringr)
 library(shinyalert)
 library(DBI)
 library(DT)
-library(fontawesome)
+
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
 dbExecute(conn,
@@ -192,9 +192,10 @@ server <- function(input, output, session) {
     
     source("read_data.R")
     
-    if (round(difftime(Sys.Date() - 1, max(d2$task_schedule_date, na.rm = T), units = "days"), 0) > 0) {
+    if (difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours") > 24) {
       source("data_refresh.R", local = TRUE)
     }
+    
     
 
     ## Update inputs ####
@@ -210,7 +211,7 @@ server <- function(input, output, session) {
     
     
     output$updateData <- renderUI({
-      if (as.Date(max(d2$task_schedule_date, na.rm = T)) < Sys.Date()) {
+      if (difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours") > 24) {
         color <- "#fc9090" # red
       } else {
         color <- "#50C878" # green
@@ -223,11 +224,15 @@ server <- function(input, output, session) {
             fill = color,
             prefer_type = "solid"
           ),
-          paste0("Data is ",if(color == "#50C878") {"fresh"} else {"stale"}), 
+          paste0("Data is ",
+                 round(difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours"),0),
+                 " hours old"
+                 ), 
           placement = "top" 
         ),
-        paste0("Data available till ", format(
-          max(d2$task_schedule_date, na.rm = T), "%d %B %Y"
+        paste0("Data updated on ", format(
+          as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)),
+          "%d %b %Y %I:%M %p"
         ), "  "),
         actionLink("updData", label = "Update Data", icon = icon("redo")),
         br(),
@@ -255,10 +260,8 @@ server <- function(input, output, session) {
         type = "info",
         text = paste0(
           "The data is ",
-          round(difftime(
-            Sys.Date(), max(d2$task_schedule_date, na.rm = T), units = "days"
-          ), 0),
-          " days old. Do you want to update this data? This may take some time."
+          round(difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours"), 0),
+          " hours old. Do you want to update this data? This may take some time."
         ),
         closeOnEsc = TRUE,
         closeOnClickOutside = TRUE,

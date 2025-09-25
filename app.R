@@ -11,6 +11,7 @@ library(shinyalert)
 library(DBI)
 library(DT)
 library(fontawesome)
+library(gh)
 
 ver <- "v1.2.0"
 ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest", .token = Sys.getenv("GH_TOKEN"))$name

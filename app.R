@@ -12,6 +12,10 @@ library(DBI)
 library(DT)
 library(fontawesome)
 
+ver <- "v1.2.0"
+ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest", .token = Sys.getenv("GH_TOKEN"))$name
+ver_update <- compareVersion(str_replace(ver_gh,"v",""),str_replace(ver,"v",""))
+
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
 dbExecute(conn,
@@ -122,7 +126,7 @@ ui <- page_fluid(
               ), card(gt_output("monthly_table"))
               ),
     card_footer(
-      uiOutput("updateData")
+      uiOutput("footer")
     )
   ),
   id = "tab"
@@ -217,12 +221,13 @@ server <- function(input, output, session) {
     })
     
     
-    output$updateData <- renderUI({
+    output$footer <- renderUI({
       if (difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours") > 24) {
         color <- "#fc9090" # red
       } else {
         color <- "#50C878" # green
       }
+      
       p(
         style = paste0('text-align:center;'),
         tooltip( 
@@ -249,6 +254,15 @@ server <- function(input, output, session) {
           "  "
         ),
         actionLink("updateAPI", label = "Update API Key", icon = icon("rotate")),
+        br(),
+        if (ver_update == 0) {
+          paste0("Anant Muskaan App ",ver)
+        } else if (ver_update == 1) {
+          a(paste0("Anant Muskaan App ",ver, " (Update available ",ver_gh,")"),
+            href = "https://github.com/ashwinikalantri/AnantMuskaan/releases/latest")
+        } else if (ver_update == -1) {
+          paste0("Beta Anant Muskaan App ",ver," (Latest ",ver_gh,")")
+        },
         br(),
         paste0(
           year(Sys.Date()),

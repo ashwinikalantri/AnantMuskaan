@@ -13,9 +13,7 @@ library(DT)
 library(fontawesome)
 library(gh)
 
-ver <- "v1.2.0"
-ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest", .token = Sys.getenv("GH_TOKEN"))$name
-ver_update <- compareVersion(str_replace(ver_gh,"v",""),str_replace(ver,"v",""))
+ver <- "v1.2.1"
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -136,6 +134,7 @@ ui <- page_fluid(
 server <- function(input, output, session) {
 
   api_key <- reactiveVal(NULL)
+  gh_token <- reactiveVal(NULL)
   
   prompt_for_key <- function() {
     shinyalert(
@@ -147,6 +146,21 @@ server <- function(input, output, session) {
       type = "input",
       inputType = "password",
       callbackR = save_key_and_proceed,
+      showConfirmButton = TRUE,
+      session = session
+    )
+  }
+  
+  prompt_for_token <- function() {
+    shinyalert(
+      inputPlaceholder = "GH Token",
+      showCancelButton = F,
+      confirmButtonText = "Submit",
+      title = "GitHub Token Required",
+      text = "Please enter your GH Token to continue.",
+      type = "input",
+      inputType = "password",
+      callbackR = save_token_and_proceed,
       showConfirmButton = TRUE,
       session = session
     )
@@ -179,7 +193,35 @@ server <- function(input, output, session) {
     }
   }
   
+  save_token_and_proceed <- function(token_from_input) {
+    
+    
+    if (!is.null(token_from_input) &&
+        token_from_input != FALSE && 
+        nzchar(token_from_input) &&
+        grepl("^github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}$",token_from_input)) {
+      
+      dbExecute(
+        conn,
+        "INSERT OR REPLACE INTO settings (name, value) VALUES ('gh_token', ?)",
+        params = list(token_from_input)
+      )
+      
+      gh_token(token_from_input)
+      
+      shinyalert("Success!", "Token has been saved.", type = "success")
+    } else {
+      
+      shinyalert("Cancelled", "You must provide a correct GH Token to check app version.", type = "error")
+      
+      # if(isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'gh_token'"))) {
+      #   prompt_for_key() 
+      # }
+    }
+  }
+  
   key_from_db <- dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'")
+  token_from_db <- dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'gh_token'")
   
   
   
@@ -196,7 +238,7 @@ server <- function(input, output, session) {
     req(api_key())
     conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
     
-    source("read_data.R")
+    source("data_read.R")
     
     if (!isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)) {
         source("data_refresh.R", local = TRUE)
@@ -228,6 +270,23 @@ server <- function(input, output, session) {
       } else {
         color <- "#50C878" # green
       }
+      
+      if (nrow(token_from_db) > 0) {
+        message("GH Token found in database.")
+        gh_token(token_from_db$value[1])
+      } else {
+        message("GH Token not found. Prompting user.")
+        gh_token("0")
+      }
+      
+      
+      if (gh_token() == 0) {
+        ver_update <- 2
+      } else {
+        ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest", .token = gh_token())$name
+        ver_update <- compareVersion(str_replace(ver_gh,"v",""),str_replace(ver,"v",""))
+      }
+      
       
       p(
         style = paste0('text-align:center;'),
@@ -263,6 +322,8 @@ server <- function(input, output, session) {
             href = "https://github.com/ashwinikalantri/AnantMuskaan/releases/latest")
         } else if (ver_update == -1) {
           paste0("Beta Anant Muskaan App ",ver," (Latest ",ver_gh,")")
+        } else if (ver_update == 2) {
+          actionLink("updateToken", label = "Enter GitHub Token", icon = icon("github"))
         },
         br(),
         paste0(
@@ -274,6 +335,10 @@ server <- function(input, output, session) {
     
     observeEvent(input$updateAPI, {
       prompt_for_key()
+    })
+    
+    observeEvent(input$updateToken, {
+      prompt_for_token()
     })
     
     observeEvent(input$updData, {

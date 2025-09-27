@@ -13,7 +13,7 @@ library(DT)
 library(fontawesome)
 library(gh)
 
-ver <- "v1.2.0"
+ver <- "v1.2.1"
 ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest", .token = Sys.getenv("GH_TOKEN"))$name
 ver_update <- compareVersion(str_replace(ver_gh,"v",""),str_replace(ver,"v",""))
 
@@ -832,7 +832,10 @@ server <- function(input, output, session) {
             names_from = c(area_type, school_type),
             values_from = c(entry, participants, activity)
           ) %>%
-          ungroup()
+          ungroup() %>% 
+          relocate(starts_with("entry_"), .after = last_col()) %>% 
+          relocate(starts_with("activity_"), .after = last_col()) %>% 
+          relocate(starts_with("participants_"), .after = last_col())
         
         month_table <- month_data %>%
           gt(rowname_col = "block") %>%

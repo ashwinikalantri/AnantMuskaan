@@ -13,7 +13,7 @@ library(DT)
 library(fontawesome)
 library(gh)
 
-ver <- "v1.2.1"
+ver <- "v1.2.0"
 ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest", .token = Sys.getenv("GH_TOKEN"))$name
 ver_update <- compareVersion(str_replace(ver_gh,"v",""),str_replace(ver,"v",""))
 

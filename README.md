@@ -19,6 +19,10 @@
 
 ## Setup
 Download the `Source Code (zip)` asset from the latest [Anant Muskaan](https://github.com/ashwinikalantri/AnantMuskaan/releases/latest) release, unzip the file in the desired folder.
+Create a file `.Renviron` with the following content:
+```
+GH_TOKEN" = "github_pat_XXXX" ## Replace with github secure token, shared via email to site PIs on request.
+```
 
 ## First Run
 - On first run, the app will create a new local database file `anantmuskaan.sqlite`. This will store some of the data from the Anant Muskaan Redcap Project in this data.

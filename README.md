@@ -18,7 +18,7 @@
   - fontawesome
   - gh
 - RedCap API key
-- Github Token
+- Github Token (Optional)
 
 ## Setup
 Download the `Source Code (zip)` asset from the latest [Anant Muskaan](https://github.com/ashwinikalantri/AnantMuskaan/releases/latest) release, unzip the file in the desired folder.

@@ -125,8 +125,8 @@ ui <- page_fluid(
           options = list(dropdownParent = 'body')
         )
       )),
-      navset_card_tab(nav_panel(
-        "Entries",
+      # navset_card_tab(nav_panel(
+      #   "Entries",
         layout_columns(
           value_box( 
             title = "No of Entries", 
@@ -143,7 +143,7 @@ ui <- page_fluid(
         ),
         #card(uiOutput("sch_ent")),
         DTOutput("school_ent_table", height = "100%")
-      ))
+      #))
     ),
     nav_panel("Monthly Data", card(
       airDatepickerInput(

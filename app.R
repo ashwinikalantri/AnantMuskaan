@@ -12,8 +12,10 @@ library(DBI)
 library(DT)
 library(fontawesome)
 library(gh)
+library(purrr)
+library(tibble)
 
-ver <- "v1.3.0"
+ver <- "v1.3.1"
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -938,7 +940,7 @@ server <- function(input, output, session) {
       school_ent_table
     }, server = FALSE)
     
-    ## Table: School Entry Summary ####
+    ## Table: School Entry Cards ####
     output$sch_ent <- renderText({
       validate(
         need(input$block_list, "Please select at least one Block."),
@@ -954,6 +956,7 @@ server <- function(input, output, session) {
       
       if (nrow(school_ent_date_range()) > 0) {
         sch_ent_val <- school_ent_date_range() %>%
+          filter(!is.na(task_schedule_date)) %>% 
           summarise(N = n()) %>% .$N
       } else {
         sch_ent_val <- 0
@@ -1026,7 +1029,8 @@ server <- function(input, output, session) {
           ))
         )
     } else {
-      no_ent_table <- data.frame(Message = "No Data") %>% datatable()
+      no_ent_table <- data.frame(Message = "No Data") %>%
+        datatable()
     }
     no_ent_table
   }, server = FALSE)

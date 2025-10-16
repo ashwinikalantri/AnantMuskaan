@@ -13,7 +13,7 @@ library(DT)
 library(fontawesome)
 library(gh)
 
-ver <- "v1.2.2"
+ver <- "v1.3.0"
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -48,9 +48,7 @@ dbExecute(
 )
 
 ui <- page_fluid(
-  card(
-    card_header(h4("Anant Muskaan")),
-    layout_columns(
+  card(card_header(h4("Anant Muskaan")), layout_columns(
     card(checkboxGroupInput("block_list", "Select Block", choices = NA)),
     card(
       checkboxGroupInput(
@@ -83,8 +81,7 @@ ui <- page_fluid(
         min = as.Date("2025-07-01"),
         format = "dd M yyyy"
       )
-    ), 
-    card(gt_output("daily_table"))),
+    ), card(gt_output("daily_table"))),
     nav_panel(
       "Date Range Data",
       card(
@@ -102,37 +99,69 @@ ui <- page_fluid(
       navset_card_tab(
         nav_panel("Entries", gt_output("range_ent_table")),
         nav_panel("Activities", gt_output("range_act_table")),
-        nav_panel("No Activities", 
-                  DTOutput(
-                    "range_noent_table", 
-                    height = "100%"
-                    ))
+        nav_panel("No Activities", DTOutput("range_noent_table", height = "100%"))
       )
     ),
-    nav_panel("Monthly Data",
-              card(
-                airDatepickerInput(
-                  inputId = "month_date",
-                  label = "Select Month",
-                  view = "months",
-                  minView = "months",
-                  value = Sys.Date() - 1,
-                  max = Sys.Date() - 1,
-                  min = as.Date("2025-07-01"),
-                  dateFormat = "MMM yyyy",
-                  autoClose = TRUE
-                )
-              ), card(gt_output("monthly_table"))
-              ),
-    card_footer(
-      uiOutput("footer")
-    )
+    nav_panel(
+      "School-wise Data",
+      layout_columns(card(
+        dateRangeInput(
+          inputId = "school_range_date",
+          label = "Select Date Range",
+          start = as.Date("2025-07-01"),
+          end = Sys.Date() - 1,
+          max = Sys.Date() - 1,
+          min = as.Date("2025-07-01"),
+          weekstart = 1,
+          format = "dd M yyyy"
+        )
+      ), card(
+        selectizeInput(
+          "selectSchool",
+          "Select School:",
+          choices = NA ,
+          options = list(dropdownParent = 'body')
+        )
+      )),
+      navset_card_tab(nav_panel(
+        "Entries",
+        layout_columns(
+          value_box( 
+            title = "No of Entries", 
+            textOutput("sch_ent"),
+            showcase = icon("calendar"),
+            theme = "primary" 
+            ),
+          value_box( 
+            title = "No of Activities", 
+            textOutput("sch_act"),
+            showcase = icon("tooth"),
+            theme = "secondary" 
+          )
+        ),
+        #card(uiOutput("sch_ent")),
+        DTOutput("school_ent_table", height = "100%")
+      ))
+    ),
+    nav_panel("Monthly Data", card(
+      airDatepickerInput(
+        inputId = "month_date",
+        label = "Select Month",
+        view = "months",
+        minView = "months",
+        value = Sys.Date() - 1,
+        max = Sys.Date() - 1,
+        min = as.Date("2025-07-01"),
+        dateFormat = "MMM yyyy",
+        autoClose = TRUE
+      )
+    ), card(gt_output("monthly_table"))),
+    card_footer(uiOutput("footer"))
   ),
   id = "tab"
 )
 
 server <- function(input, output, session) {
-
   api_key <- reactiveVal(NULL)
   
   prompt_for_key <- function() {
@@ -151,13 +180,10 @@ server <- function(input, output, session) {
   }
   
   save_key_and_proceed <- function(key_from_input) {
-    
-    
     if (!is.null(key_from_input) &&
-        key_from_input != FALSE && 
+        key_from_input != FALSE &&
         nzchar(key_from_input) &&
-        grepl("^([0-9A-Fa-f]{32})(?:\n)?$",key_from_input)) {
-      
+        grepl("^([0-9A-Fa-f]{32})(?:\n)?$", key_from_input)) {
       dbExecute(
         conn,
         "INSERT OR REPLACE INTO settings (name, value) VALUES ('api_key', ?)",
@@ -168,11 +194,12 @@ server <- function(input, output, session) {
       
       shinyalert("Success!", "API Key has been saved.", type = "success")
     } else {
+      shinyalert("Cancelled",
+                 "You must provide a correct API key to use the app.",
+                 type = "error")
       
-      shinyalert("Cancelled", "You must provide a correct API key to use the app.", type = "error")
-      
-      if(isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'"))) {
-        prompt_for_key() 
+      if (isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'"))) {
+        prompt_for_key()
       }
     }
   }
@@ -188,24 +215,26 @@ server <- function(input, output, session) {
   }
   
   observeEvent(api_key(), {
-    
     req(api_key())
     conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
     
     source("data_read.R")
     
     if (!isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)) {
-        source("data_refresh.R", local = TRUE)
+      source("data_refresh.R", local = TRUE)
     } else {
       if (difftime(Sys.time(), as.POSIXct(as.numeric(
-        dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value
+        dbGetQuery(
+          conn,
+          "SELECT value FROM settings WHERE name = 'last_update'"
+        )$value
       )), units = "hours") > 24) {
         source("data_refresh.R", local = TRUE)
       }
     }
     
     
-
+    
     ## Update inputs ####
     observe({
       updateCheckboxGroupInput(
@@ -219,33 +248,49 @@ server <- function(input, output, session) {
     
     
     output$footer <- renderUI({
-      if (difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours") > 24) {
+      if (difftime(Sys.time(), as.POSIXct(as.numeric(
+        dbGetQuery(
+          conn,
+          "SELECT value FROM settings WHERE name = 'last_update'"
+        )$value
+      )), units = "hours") > 24) {
         color <- "#fc9090" # red
       } else {
         color <- "#50C878" # green
       }
       
+      date_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest")$published_at
       ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest")$name
       ver_update <- compareVersion(str_replace(ver_gh, "v", ""), str_replace(ver, "v", ""))
       
       p(
         style = paste0('text-align:center;'),
-        tooltip( 
+        tooltip(
           fa(
             name = "circle",
             fill = color,
             prefer_type = "solid"
           ),
-          paste0("Data is ",
-                 round(difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours"),0),
-                 " hours old"
-                 ), 
-          placement = "top" 
+          paste0("Data is ", round(
+            difftime(Sys.time(), as.POSIXct(as.numeric(
+              dbGetQuery(
+                conn,
+                "SELECT value FROM settings WHERE name = 'last_update'"
+              )$value
+            )), units = "hours"), 0
+          ), " hours old"),
+          placement = "top"
         ),
-        paste0("Data updated on ", format(
-          as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)),
-          "%d %b %Y %I:%M %p"
-        ), "  "),
+        paste0(
+          "Data updated on ",
+          format(as.POSIXct(as.numeric(
+            dbGetQuery(
+              conn,
+              "SELECT value FROM settings WHERE name = 'last_update'"
+            )$value
+          )), "%d %b %Y %I:%M %p"),
+          "  "
+        ),
         actionLink("updData", label = "Update Data", icon = icon("redo")),
         br(),
         paste0(
@@ -253,15 +298,41 @@ server <- function(input, output, session) {
           str_replace(api_key(), "(?<=^.{4}).*(?=.{4}$)", " * * * * "),
           "  "
         ),
-        actionLink("updateAPI", label = "Update API Key", icon = icon("rotate")),
+        actionLink(
+          "updateAPI",
+          label = "Update API Key",
+          icon = icon("rotate")
+        ),
         br(),
         if (ver_update == 0) {
-          paste0("Anant Muskaan App ",ver)
+          paste0("Anant Muskaan App ",
+                 ver,
+                 " (dated ",
+                 format(as.POSIXct(date_gh), "%d %b %Y"),
+                 ")")
         } else if (ver_update == 1) {
-          a(paste0("Anant Muskaan App ",ver, " (Update available ",ver_gh,")"),
-            href = "https://github.com/ashwinikalantri/AnantMuskaan/releases/latest")
+          a(
+            paste0(
+              "Anant Muskaan App ",
+              ver,
+              " (Updated ",
+              ver_gh,
+              " dated ",
+              format(as.POSIXct(date_gh), "%d %b %Y"),
+              " available)"
+            ),
+            href = "https://github.com/ashwinikalantri/AnantMuskaan/releases/latest"
+          )
         } else if (ver_update == -1) {
-          paste0("Beta Anant Muskaan App ",ver," (Latest ",ver_gh,")")
+          paste0(
+            "Beta Anant Muskaan App ",
+            ver,
+            " (Latest ",
+            ver_gh,
+            " dated ",
+            format(as.POSIXct(date_gh), "%d %b %Y"),
+            ")"
+          )
         },
         br(),
         paste0(
@@ -281,7 +352,14 @@ server <- function(input, output, session) {
         type = "info",
         text = paste0(
           "The data is ",
-          round(difftime(Sys.time(), as.POSIXct(as.numeric(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)), units = "hours"), 0),
+          round(difftime(
+            Sys.time(), as.POSIXct(as.numeric(
+              dbGetQuery(
+                conn,
+                "SELECT value FROM settings WHERE name = 'last_update'"
+              )$value
+            )), units = "hours"
+          ), 0),
           " hours old. Do you want to update this data? This may take some time."
         ),
         closeOnEsc = TRUE,
@@ -296,7 +374,23 @@ server <- function(input, output, session) {
         size = "s"
       )
     })
-    
+    ## Choices ####
+    observe({
+      choices_school <- d1 %>%
+        filter(block %in% input$block_list) %>%
+        filter(area_type %in% input$area_type_list) %>%
+        filter(school_type %in% input$school_type_list) %>%
+        separate_wider_delim(
+          record_id,
+          delim = "-",
+          names = c("Site", "ID"),
+          too_few = "align_start",
+          too_many = "merge"
+        ) %>%
+        split(.$block) %>%
+        map(~ deframe(select(., school, ID)))
+      updateSelectInput(inputId = "selectSchool", choices = choices_school)
+    })
     ## Data: Monthly####
     data_monthly <- reactive({
       d2 %>%
@@ -338,6 +432,52 @@ server <- function(input, output, session) {
         arrange(ID) %>%
         mutate(across(
           .cols = c("entry", "participants", "activity"),
+          ~ replace_na(., 0)
+        ))
+    })
+    
+    ##Data: School Ent ####
+    school_ent_date_range <- reactive({
+      d2 %>%
+        filter(task_schedule_date >= input$school_range_date[[1]]) %>%
+        filter(task_schedule_date <= input$school_range_date[[2]]) %>%
+        group_by(record_id) %>%
+        arrange(record_id,
+                desc(task_schedule_date),
+                desc(task_start_date)) %>%
+        mutate(dup = duplicated(task_schedule_date)) %>%
+        filter(dup == FALSE) %>%
+        select(record_id,
+               task_schedule_date,
+               brush_activity,
+               participants) %>%
+        mutate(brush_activity = case_when(brush_activity == 1 ~ 1, brush_activity == 2 ~ 0)) %>%
+        # summarise(
+        #   entry = n(),
+        #   participants = sum(as.numeric(participants), na.rm = T),
+        #   activity = sum(brush_activity, na.rm = T)
+        # ) %>%
+        right_join(
+          d1 %>%
+            dplyr::select(record_id, school, block, area_type, school_type),
+          by = join_by(record_id)
+        ) %>%
+        ungroup() %>%
+        filter(block %in% input$block_list) %>%
+        filter(area_type %in% input$area_type_list) %>%
+        filter(school_type %in% input$school_type_list) %>%
+        separate_wider_delim(
+          record_id,
+          delim = "-",
+          names = c("Site", "ID"),
+          too_few = "align_start",
+          too_many = "merge"
+        ) %>%
+        mutate(ID = as.numeric(ID)) %>%
+        filter(ID == input$selectSchool) %>%
+        arrange(ID) %>%
+        mutate(across(
+          .cols = c("participants", "brush_activity"),
           ~ replace_na(., 0)
         ))
     })
@@ -446,7 +586,8 @@ server <- function(input, output, session) {
         )), ~ . / sum(.)),
         n = across(any_of(c(
           groups, "Visits"
-        )), ~ .),) %>%
+        )), ~ .),
+        ) %>%
         filter(per$Visits == .25)
       
       if (nrow(day_data) > 0) {
@@ -458,7 +599,7 @@ server <- function(input, output, session) {
           bind_cols(day_data %>%
                       .$per %>%
                       select(-Visits) %>%
-                      rename_with( ~ paste0(.x, "_P"), everything()))
+                      rename_with(~ paste0(.x, "_P"), everything()))
         
         
         daily_table <- day_data %>%
@@ -558,7 +699,7 @@ server <- function(input, output, session) {
           select(block, entry) %>%
           bind_cols(range_data %>% .$n) %>%
           bind_cols(range_data %>% .$per %>%
-                      rename_with( ~ paste0(.x, "_P"), everything()))
+                      rename_with(~ paste0(.x, "_P"), everything()))
         
         
         range_table <- range_data %>%
@@ -674,10 +815,10 @@ server <- function(input, output, session) {
           select(block, activity) %>%
           bind_cols(range_data_act %>% .$n) %>%
           bind_cols(range_data_act %>% .$per %>%
-                      rename_with( ~ paste0(.x, "_P"), everything())) %>% 
-          relocate(ends_with("_activity"), .after = last_col()) %>% 
-          relocate(ends_with("_activity_P"), .after = last_col()) %>% 
-          relocate(ends_with("_participants"), .after = last_col()) %>% 
+                      rename_with(~ paste0(.x, "_P"), everything())) %>%
+          relocate(ends_with("_activity"), .after = last_col()) %>%
+          relocate(ends_with("_activity_P"), .after = last_col()) %>%
+          relocate(ends_with("_participants"), .after = last_col()) %>%
           relocate(ends_with("_participants_P"), .after = last_col())
         
         range_act_table <- range_data_act %>%
@@ -746,8 +887,8 @@ server <- function(input, output, session) {
       range_act_table
     })
     
-    ## Table: Range No Entries ####
-    output$range_noent_table <- renderDT({
+    ## Table: School Entries ####
+    output$school_ent_table <- renderDT({
       validate(
         need(input$block_list, "Please select at least one Block."),
         need(
@@ -761,45 +902,44 @@ server <- function(input, output, session) {
       )
       
       
-      if (nrow(data_date_range()) > 0) {
-        no_ent_table <- data_date_range() %>%
-          filter(activity == 0) %>%
-          select(ID, block, school, entry) %>%
-          group_by(block) %>%
+      if (nrow(school_ent_date_range()) > 0) {
+        school_ent_table <- school_ent_date_range() %>%
+          select(task_schedule_date, brush_activity) %>%
+          mutate(brush_activity = case_when(
+            brush_activity == 0 ~ "Not done",
+            brush_activity == 1 ~ "Done"
+          )) %>%
+          mutate(task_schedule_date = format(task_schedule_date, "%d %b %Y")) %>%
+          #group_by(block) %>%
           datatable(
             rownames = FALSE,
-            colnames = c('ID', "Block",'School', 'Entries'),
+            colnames = c('Date', "Activity"),
             extensions = 'Buttons',
-            options = list(
-              dom = 'Bfrtip',
-              buttons = list(
-                c('copy'),
-                list(
-                  extend = "print",
-                  title = "Anant Muskaan - Schools with no Activities"
+            options = list(dom = 'Bfrtip', buttons = list(
+              c('copy'),
+              list(extend = "print", title = "Anant Muskaan - Schools with Activities"),
+              list(
+                extend = 'collection',
+                buttons = list(
+                  list(
+                    extend = "pdf",
+                    title = "Anant Muskaan - Schools with Activities",
+                    filename = "AM_no_act"
                   ),
-                list(
-                  extend = 'collection',
-                  buttons = list(
-                    list(
-                      extend = "pdf",
-                      title = "Anant Muskaan - Schools with no Activities",
-                      filename = "AM_no_act"
-                    ),
-                    list(extend = "excel", filename = "AM_no_act")),
-                  text = 'Download'
-                )
-                )
-            )
+                  list(extend = "excel", filename = "AM_act")
+                ),
+                text = 'Download'
+              )
+            ))
           )
       } else {
-        no_ent_table <- data.frame(Message = "No Data") %>% datatable()
+        school_ent_table <- data.frame(Message = "No Data") %>% datatable()
       }
-      no_ent_table
+      school_ent_table
     }, server = FALSE)
     
-    ## Table: Monthly ####
-    output$monthly_table <- render_gt({
+    ## Table: School Entry Summary ####
+    output$sch_ent <- renderText({
       validate(
         need(input$block_list, "Please select at least one Block."),
         need(
@@ -811,90 +951,180 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      if (nrow(data_monthly()) > 0) {
-        groups_range_m <- expand.grid(
-          c("entry", "participants", "activity"),
-          input$area_type_list,
-          input$school_type_list
-        ) %>%
-          mutate(groups = paste0(Var1, "_", Var2, "_", Var3)) %>%
-          .$groups
-        
-        month_data <- data_monthly() %>%
-          group_by(block, area_type, school_type) %>%
-          summarise(
-            entry = sum(entry, na.rm = T),
-            participants = sum(participants, na.rm = T),
-            activity = sum(activity, na.rm = T)
-          ) %>%
-          pivot_wider(
-            names_from = c(area_type, school_type),
-            values_from = c(entry, participants, activity)
-          ) %>%
-          ungroup() %>% 
-          relocate(starts_with("entry_"), .after = last_col()) %>% 
-          relocate(starts_with("activity_"), .after = last_col()) %>% 
-          relocate(starts_with("participants_"), .after = last_col())
-        
-        month_table <- month_data %>%
-          gt(rowname_col = "block") %>%
-          tab_spanner(columns = contains("R_"), label = "Rural") %>%
-          tab_spanner(columns = contains("U_"), label = "Urbal") %>%
-          cols_label(
-            ends_with("_GA") ~ "Gov Aided",
-            ends_with("_GS") ~ "Gov School",
-            ends_with("_PS") ~ "Pvt School"
-          ) %>%
-          sub_missing(missing_text = "0") %>%
-          tab_options(
-            table.width = pct(95),
-            heading.border.bottom.color = "black",
-            column_labels.font.size = "12px",
-            column_labels.font.weight = "bold",
-            column_labels.border.bottom.color = "black",
-            grand_summary_row.border.color = "black",
-            row_group.border.top.color = "black",
-            row_group.border.bottom.color = "black",
-            stub.border.color = "black"
-          ) %>%
-          opt_table_outline(color = "black") %>%
-          tab_style(
-            style = cell_borders(
-              sides = c("top", "bottom"),
-              color = "black",
-              weight = px(1.5),
-              style = "solid"
-            ),
-            locations = list(cells_body(), cells_stub())
-          ) %>%
-          cols_width(block ~ pct(15), contains("_") ~ pct(15)) %>%
-          tab_header(
-            title = paste0("Anant Muskan MyCap"),
-            subtitle = paste0(
-              "No of Entries, Activities conducted and Students for ",
-              format(input$month_date, "%b %Y")
-            )
-          ) %>%
-          tab_style(style = cell_text(weight = "bold", align = "center"),
-                    locations = cells_row_groups()) %>%
-          cols_align(align = "center", columns = everything())
-        
-        for (i in unique(word(
-          names(month_data)[names(month_data) %in% groups_range_m],
-          start = -2,
-          end = -1,
-          sep = "_"
-        ))) {
-          month_table <- month_table %>%
-            cols_merge(columns = ends_with(i), pattern = "Entered: {1}<br>Activities: {2} <br> Students: {3}")
-        }
+      
+      if (nrow(school_ent_date_range()) > 0) {
+        sch_ent_val <- school_ent_date_range() %>%
+          summarise(N = n()) %>% .$N
       } else {
-        month_table <- data.frame() %>% gt()
+        sch_ent_val <- 0
       }
       
-      month_table
-    })
+      sch_ent_val
+    
   })
+  
+    
+    output$sch_act <- renderText({
+      validate(
+        need(input$block_list, "Please select at least one Block."),
+        need(
+          input$area_type_list,
+          "Please select at least one Area type."
+        ),
+        need(
+          input$school_type_list,
+          "Please select at least one School type."
+        )
+      )
+      
+      if (nrow(school_ent_date_range()) > 0) {
+        sch_act_val <- school_ent_date_range() %>%
+          summarise(N = sum(brush_activity)) %>% .$N
+      } else {
+        sch_act_val <- 0
+      }
+      
+      sch_act_val
+      
+    })
+  ## Table: Range No Entries ####
+  output$range_noent_table <- renderDT({
+    validate(
+      need(input$block_list, "Please select at least one Block."),
+      need(input$area_type_list, "Please select at least one Area type."),
+      need(
+        input$school_type_list,
+        "Please select at least one School type."
+      )
+    )
+    
+    
+    if (nrow(data_date_range()) > 0) {
+      no_ent_table <- data_date_range() %>%
+        filter(activity == 0) %>%
+        select(ID, block, school, entry) %>%
+        group_by(block) %>%
+        datatable(
+          rownames = FALSE,
+          colnames = c('ID', "Block", 'School', 'Entries'),
+          extensions = 'Buttons',
+          options = list(dom = 'Bfrtip', buttons = list(
+            c('copy'),
+            list(extend = "print", title = "Anant Muskaan - Schools with no Activities"),
+            list(
+              extend = 'collection',
+              buttons = list(
+                list(
+                  extend = "pdf",
+                  title = "Anant Muskaan - Schools with no Activities",
+                  filename = "AM_no_act"
+                ),
+                list(extend = "excel", filename = "AM_no_act")
+              ),
+              text = 'Download'
+            )
+          ))
+        )
+    } else {
+      no_ent_table <- data.frame(Message = "No Data") %>% datatable()
+    }
+    no_ent_table
+  }, server = FALSE)
+  
+  ## Table: Monthly ####
+  output$monthly_table <- render_gt({
+    validate(
+      need(input$block_list, "Please select at least one Block."),
+      need(input$area_type_list, "Please select at least one Area type."),
+      need(
+        input$school_type_list,
+        "Please select at least one School type."
+      )
+    )
+    if (nrow(data_monthly()) > 0) {
+      groups_range_m <- expand.grid(
+        c("entry", "participants", "activity"),
+        input$area_type_list,
+        input$school_type_list
+      ) %>%
+        mutate(groups = paste0(Var1, "_", Var2, "_", Var3)) %>%
+        .$groups
+      
+      month_data <- data_monthly() %>%
+        group_by(block, area_type, school_type) %>%
+        summarise(
+          entry = sum(entry, na.rm = T),
+          participants = sum(participants, na.rm = T),
+          activity = sum(activity, na.rm = T)
+        ) %>%
+        pivot_wider(
+          names_from = c(area_type, school_type),
+          values_from = c(entry, participants, activity)
+        ) %>%
+        ungroup() %>%
+        relocate(starts_with("entry_"), .after = last_col()) %>%
+        relocate(starts_with("activity_"), .after = last_col()) %>%
+        relocate(starts_with("participants_"), .after = last_col())
+      
+      month_table <- month_data %>%
+        gt(rowname_col = "block") %>%
+        tab_spanner(columns = contains("R_"), label = "Rural") %>%
+        tab_spanner(columns = contains("U_"), label = "Urbal") %>%
+        cols_label(
+          ends_with("_GA") ~ "Gov Aided",
+          ends_with("_GS") ~ "Gov School",
+          ends_with("_PS") ~ "Pvt School"
+        ) %>%
+        sub_missing(missing_text = "0") %>%
+        tab_options(
+          table.width = pct(95),
+          heading.border.bottom.color = "black",
+          column_labels.font.size = "12px",
+          column_labels.font.weight = "bold",
+          column_labels.border.bottom.color = "black",
+          grand_summary_row.border.color = "black",
+          row_group.border.top.color = "black",
+          row_group.border.bottom.color = "black",
+          stub.border.color = "black"
+        ) %>%
+        opt_table_outline(color = "black") %>%
+        tab_style(
+          style = cell_borders(
+            sides = c("top", "bottom"),
+            color = "black",
+            weight = px(1.5),
+            style = "solid"
+          ),
+          locations = list(cells_body(), cells_stub())
+        ) %>%
+        cols_width(block ~ pct(15), contains("_") ~ pct(15)) %>%
+        tab_header(
+          title = paste0("Anant Muskan MyCap"),
+          subtitle = paste0(
+            "No of Entries, Activities conducted and Students for ",
+            format(input$month_date, "%b %Y")
+          )
+        ) %>%
+        tab_style(style = cell_text(weight = "bold", align = "center"),
+                  locations = cells_row_groups()) %>%
+        cols_align(align = "center", columns = everything())
+      
+      for (i in unique(word(
+        names(month_data)[names(month_data) %in% groups_range_m],
+        start = -2,
+        end = -1,
+        sep = "_"
+      ))) {
+        month_table <- month_table %>%
+          cols_merge(columns = ends_with(i), pattern = "Entered: {1}<br>Activities: {2} <br> Students: {3}")
+      }
+    } else {
+      month_table <- data.frame() %>% gt()
+    }
+    
+    month_table
+  })
+})
 }
 
 shinyApp(ui = ui, server = server)

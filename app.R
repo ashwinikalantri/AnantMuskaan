@@ -136,7 +136,7 @@ ui <- page_fluid(
             title = "No of Activities", 
             textOutput("sch_act"),
             showcase = icon("tooth"),
-            theme = "secondary" 
+            theme = "teal" 
           )
         ),
         #card(uiOutput("sch_ent")),

@@ -15,7 +15,7 @@ library(gh)
 library(purrr)
 library(tibble)
 
-ver <- "v1.3.1"
+ver <- "v1.3.2"
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -101,7 +101,8 @@ ui <- page_fluid(
       navset_card_tab(
         nav_panel("Entries", gt_output("range_ent_table")),
         nav_panel("Activities", gt_output("range_act_table")),
-        nav_panel("No Activities", DTOutput("range_noent_table", height = "100%"))
+        nav_panel("No Activities", DTOutput("range_noent_table", height = "100%")),
+        nav_panel("Schools with Entries", DTOutput("range_school_ent_table", height = "100%"))
       )
     ),
     nav_panel(
@@ -990,7 +991,8 @@ server <- function(input, output, session) {
       sch_act_val
       
     })
-  ## Table: Range No Entries ####
+  
+    ## Table: Range No Entries ####
   output$range_noent_table <- renderDT({
     validate(
       need(input$block_list, "Please select at least one Block."),
@@ -1035,6 +1037,51 @@ server <- function(input, output, session) {
     no_ent_table
   }, server = FALSE)
   
+    ## Table: Range No Entries ####
+    output$range_school_ent_table <- renderDT({
+      validate(
+        need(input$block_list, "Please select at least one Block."),
+        need(input$area_type_list, "Please select at least one Area type."),
+        need(
+          input$school_type_list,
+          "Please select at least one School type."
+        )
+      )
+      
+      
+      if (nrow(data_date_range()) > 0) {
+        ent_table <- data_date_range() %>%
+          filter(entry != 0) %>%
+          select(ID, block, school,activity, entry) %>%
+          group_by(block) %>%
+          datatable(
+            rownames = FALSE,
+            colnames = c('ID', "Block", 'School', "Activity",'Entries'),
+            extensions = 'Buttons',
+            options = list(dom = 'Bfrtip', buttons = list(
+              c('copy'),
+              list(extend = "print", title = "Anant Muskaan - Schools with Entries"),
+              list(
+                extend = 'collection',
+                buttons = list(
+                  list(
+                    extend = "pdf",
+                    title = "Anant Muskaan - Schools with Entries",
+                    filename = "AM_ent"
+                  ),
+                  list(extend = "excel", filename = "AM_ent")
+                ),
+                text = 'Download'
+              )
+            ))
+          )
+      } else {
+        ent_table <- data.frame(Message = "No Data") %>%
+          datatable()
+      }
+      ent_table
+    }, server = FALSE)
+    
   ## Table: Monthly ####
   output$monthly_table <- render_gt({
     validate(

@@ -15,7 +15,7 @@ library(gh)
 library(purrr)
 library(tibble)
 
-ver <- "v1.3.2"
+ver <- "v1.3.3"
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -50,7 +50,50 @@ dbExecute(
 )
 
 ui <- page_fluid(
-  card(card_header(h4("Anant Muskaan")), layout_columns(
+  card(card_header(h4("Anant Muskaan")),
+       layout_columns(
+         value_box( 
+           title = "Total Schools", 
+           textOutput("sch_no"),
+           uiOutput("sch_ur"),
+           uiOutput("sch_type"),
+           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
+           uiOutput("sch_ent_yd"),
+           showcase = icon("school"),
+           theme = "primary" 
+         ),
+         value_box( 
+           title = textOutput("block_name_1"),
+           textOutput("sch_no_b1"),
+           uiOutput("sch_ur_b1"),
+           uiOutput("sch_type_b1"),
+           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
+           uiOutput("sch_ent_yd_b1"),
+           showcase = icon("location-dot"),
+           theme = "teal" 
+         ),
+         value_box( 
+           title = textOutput("block_name_2"),
+           textOutput("sch_no_b2"),
+           uiOutput("sch_ur_b2"),
+           uiOutput("sch_type_b2"),
+           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
+           uiOutput("sch_ent_yd_b2"),
+           showcase = icon("location-dot"),
+           theme = "teal" 
+         ),
+         value_box( 
+           title = textOutput("block_name_3"),
+           textOutput("sch_no_b3"),
+           uiOutput("sch_ur_b3"),
+           uiOutput("sch_type_b3"),
+           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
+           uiOutput("sch_ent_yd_b3"),
+           showcase = icon("location-dot"),
+           theme = "teal" 
+         )
+       ),
+       layout_columns(
     card(checkboxGroupInput("block_list", "Select Block", choices = NA)),
     card(
       checkboxGroupInput(
@@ -394,6 +437,160 @@ server <- function(input, output, session) {
         map(~ deframe(select(., school, ID)))
       updateSelectInput(inputId = "selectSchool", choices = choices_school)
     })
+    
+    ## Summary: Summary Card Values ####
+    card_data <- d1 %>%
+      group_by(block) %>%
+      count() %>%
+      left_join(
+        d1 %>%
+          group_by(block, area_type) %>%
+          count() %>%
+          pivot_wider(names_from = area_type, values_from = n),
+        by = join_by(block)
+      ) %>%
+      left_join(
+        d1 %>%
+          group_by(block, school_type) %>%
+          count() %>%
+          pivot_wider(names_from = school_type, values_from = n),
+        by = join_by(block)
+      ) %>%
+      left_join(
+        d2 %>%
+          filter(task_schedule_date == Sys.Date() - 1) %>%
+          left_join(d1, by = join_by(record_id)) %>%
+          mutate(brush_activity = case_when(
+            brush_activity == 1 ~ 1, brush_activity == 2 ~ 0
+          )) %>%
+          group_by(block) %>%
+          summarise(entry = n(), act = sum(brush_activity)),
+        by = join_by(block)
+      )
+    
+    output$sch_no <- renderText({
+      sum(card_data$n)
+    })
+    
+    output$sch_ur <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-info", paste0("Urban: ",sum(card_data$U))),
+               tags$span(class = "badge bg-info", paste0("Rural: ",sum(card_data$R)))
+      )
+    })
+    
+    output$sch_type <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-info", paste0("Gov: ",sum(card_data$GS))),
+               tags$span(class = "badge bg-info", paste0("Aided: ",sum(card_data$GA))),
+               tags$span(class = "badge bg-info", paste0("Pvt: ",sum(card_data$PS))),
+      )
+    })
+      
+    
+    #Block 1
+    output$block_name_1 <- renderText({
+      card_data[1,]$block
+    })
+    output$sch_no_b1 <- renderText({
+      card_data[1,]$n
+    })
+    
+    output$sch_ur_b1 <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-success", paste0("Urban: ",card_data[1,]$U)),
+               tags$span(class = "badge bg-success", paste0("Rural: ",card_data[1,]$R))
+      )
+    })
+    
+    output$sch_type_b1 <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-success", paste0("Gov: ",card_data[1,]$GS)),
+               tags$span(class = "badge bg-success", paste0("Aided: ",card_data[1,]$GA)),
+               tags$span(class = "badge bg-success", paste0("Pvt: ",card_data[1,]$PS)),
+      )
+    })
+    
+    
+    #Block 2
+    output$block_name_2 <- renderText({
+      card_data[2,]$block
+    })
+    output$sch_no_b2 <- renderText({
+      card_data[2,]$n
+    })
+    
+    output$sch_ur_b2 <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-success", paste0("Urban: ",card_data[2,]$U)),
+               tags$span(class = "badge bg-success", paste0("Rural: ",card_data[2,]$R))
+      )
+    })
+    
+    output$sch_type_b2 <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-success", paste0("Gov: ",card_data[2,]$GS)),
+               tags$span(class = "badge bg-success", paste0("Aided: ",card_data[2,]$GA)),
+               tags$span(class = "badge bg-success", paste0("Pvt: ",card_data[2,]$PS)),
+      )
+    })
+    
+    #Block 3
+    output$block_name_3 <- renderText({
+      card_data[3,]$block
+    })
+    output$sch_no_b3 <- renderText({
+      card_data[3,]$n
+    })
+    
+    output$sch_ur_b3 <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-success", paste0("Urban: ",card_data[3,]$U)),
+               tags$span(class = "badge bg-success", paste0("Rural: ",card_data[3,]$R))
+      )
+    })
+    
+    output$sch_type_b3 <- renderUI({
+      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+               tags$span(class = "badge bg-success", paste0("Gov: ",card_data[3,]$GS)),
+               tags$span(class = "badge bg-success", paste0("Aided: ",card_data[3,]$GA)),
+               tags$span(class = "badge bg-success", paste0("Pvt: ",card_data[3,]$PS)),
+      )
+    })
+    
+    # Activities and entries
+    output$sch_ent_yd <- renderUI({
+      tags$div(
+        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+        tags$span(class = "badge bg-info", paste0("Entries: ", sum(card_data$entry))),
+        tags$span(class = "badge bg-info", paste0("Activities: ", sum(card_data$act)))
+      )
+    })
+    
+    output$sch_ent_yd_b1 <- renderUI({
+      tags$div(
+        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+        tags$span(class = "badge bg-success", paste0("Entries: ", card_data[1,]$entry)),
+        tags$span(class = "badge bg-success", paste0("Activities: ", card_data[1,]$act))
+      )
+    })
+    
+    output$sch_ent_yd_b2 <- renderUI({
+      tags$div(
+        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+        tags$span(class = "badge bg-success", paste0("Entries: ", card_data[2,]$entry)),
+        tags$span(class = "badge bg-success", paste0("Activities: ", card_data[2,]$act))
+      )
+    })
+    
+    output$sch_ent_yd_b3 <- renderUI({
+      tags$div(
+        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+        tags$span(class = "badge bg-success", paste0("Entries: ", card_data[3,]$entry)),
+        tags$span(class = "badge bg-success", paste0("Activities: ", card_data[3,]$act))
+      )
+    })
+    
     ## Data: Monthly####
     data_monthly <- reactive({
       d2 %>%

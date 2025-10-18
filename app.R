@@ -14,8 +14,9 @@ library(fontawesome)
 library(gh)
 library(purrr)
 library(tibble)
+library(plotly)
 
-ver <- "v1.3.3"
+ver <- "v1.3.4"
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -59,7 +60,9 @@ ui <- page_fluid(
            uiOutput("sch_type"),
            paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
            uiOutput("sch_ent_yd"),
-           showcase = icon("school"),
+           showcase = plotlyOutput("graph_sch"), 
+           showcase_layout = "bottom",
+           #showcase = icon("school"),
            theme = "primary" 
          ),
          value_box( 
@@ -69,7 +72,8 @@ ui <- page_fluid(
            uiOutput("sch_type_b1"),
            paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
            uiOutput("sch_ent_yd_b1"),
-           showcase = icon("location-dot"),
+           showcase = plotlyOutput("graph_sch_b1"), 
+           showcase_layout = "bottom",
            theme = "teal" 
          ),
          value_box( 
@@ -79,7 +83,8 @@ ui <- page_fluid(
            uiOutput("sch_type_b2"),
            paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
            uiOutput("sch_ent_yd_b2"),
-           showcase = icon("location-dot"),
+           showcase = plotlyOutput("graph_sch_b2"), 
+           showcase_layout = "bottom",
            theme = "teal" 
          ),
          value_box( 
@@ -89,16 +94,23 @@ ui <- page_fluid(
            uiOutput("sch_type_b3"),
            paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
            uiOutput("sch_ent_yd_b3"),
-           showcase = icon("location-dot"),
+           showcase = plotlyOutput("graph_sch_b3"), 
+           showcase_layout = "bottom",
            theme = "teal" 
          )
        ),
        layout_columns(
-    card(checkboxGroupInput("block_list", "Select Block", choices = NA)),
+         card(checkboxGroupInput(
+           "block_list",
+           "Select Block",
+           inline = T,
+           choices = NA
+         )), 
     card(
       checkboxGroupInput(
         "area_type_list",
         "Select Area",
+        inline = T,
         choices = c("Rural" = "R", "Urban" = "U"),
         selected = c("R", "U")
       )
@@ -107,6 +119,7 @@ ui <- page_fluid(
       checkboxGroupInput(
         "school_type_list",
         "Select School Type",
+        inline = T,
         choices = c(
           "Gov School" = "GS",
           "Gov Aided" = "GA",
@@ -591,6 +604,103 @@ server <- function(input, output, session) {
       )
     })
     
+    output$graph_sch_b1 <- renderPlotly({
+      
+      plot_ly(d2 %>% 
+                left_join(d1,by = join_by(record_id)) %>% 
+                group_by(block,task_schedule_date) %>% 
+                count() %>% 
+                filter(block == card_data[1,]$block) %>% 
+                select(-block), height = 100) |> 
+        add_lines( 
+          x = ~task_schedule_date, 
+          y = ~n, 
+          color = I("#ffffff"), 
+          fill = "tozeroy",
+          alpha = 0.75
+        ) %>% 
+        layout( 
+          xaxis = list(visible = FALSE, showgrid = FALSE), 
+          yaxis = list(visible = FALSE, showgrid = FALSE), 
+          hovermode = "x", 
+          margin = list(t = 0, r = 0, l = 0, b = 0), 
+          paper_bgcolor = "transparent", 
+          plot_bgcolor = "transparent" ) %>% 
+        config(displayModeBar = F)
+    })
+    
+    output$graph_sch_b2 <- renderPlotly({
+      
+      plot_ly(d2 %>% 
+                left_join(d1,by = join_by(record_id)) %>% 
+                group_by(block,task_schedule_date) %>% 
+                count() %>% 
+                filter(block == card_data[2,]$block) %>% 
+                select(-block), height = 100) |> 
+        add_lines( 
+          x = ~task_schedule_date, 
+          y = ~n, 
+          color = I("#ffffff"), 
+          fill = "tozeroy",
+          alpha = 0.75
+        ) %>% 
+        layout( 
+          xaxis = list(visible = FALSE, showgrid = FALSE), 
+          yaxis = list(visible = FALSE, showgrid = FALSE), 
+          hovermode = "x", 
+          margin = list(t = 0, r = 0, l = 0, b = 0), 
+          paper_bgcolor = "transparent", 
+          plot_bgcolor = "transparent" ) %>% 
+        config(displayModeBar = F)
+    })
+    
+    output$graph_sch_b3 <- renderPlotly({
+      
+      plot_ly(d2 %>% 
+                left_join(d1,by = join_by(record_id)) %>% 
+                group_by(block,task_schedule_date) %>% 
+                count() %>% 
+                filter(block == card_data[3,]$block) %>% 
+                select(-block), height = 100) |> 
+        add_lines( 
+          x = ~task_schedule_date, 
+          y = ~n, 
+          color = I("#ffffff"), 
+          fill = "tozeroy",
+          alpha = 0.75
+        ) %>% 
+        layout( 
+          xaxis = list(visible = FALSE, showgrid = FALSE), 
+          yaxis = list(visible = FALSE, showgrid = FALSE), 
+          hovermode = "x", 
+          margin = list(t = 0, r = 0, l = 0, b = 0), 
+          paper_bgcolor = "transparent", 
+          plot_bgcolor = "transparent" ) %>% 
+        config(displayModeBar = F)
+    })
+    
+    output$graph_sch <- renderPlotly({
+      
+      plot_ly(d2 %>% 
+                group_by(task_schedule_date) %>% 
+                count(), height = 100) |> 
+        add_lines( 
+          x = ~task_schedule_date, 
+          y = ~n, 
+          color = I("#ffffff"), 
+          fill = "tozeroy",
+          alpha = 0.75
+        ) %>% 
+        layout( 
+          xaxis = list(visible = FALSE, showgrid = FALSE), 
+          yaxis = list(visible = FALSE, showgrid = FALSE), 
+          hovermode = "x", 
+          margin = list(t = 0, r = 0, l = 0, b = 0), 
+          paper_bgcolor = "transparent", 
+          plot_bgcolor = "transparent" ) %>% 
+        config(displayModeBar = F)
+    })
+    
     ## Data: Monthly####
     data_monthly <- reactive({
       d2 %>%
@@ -843,7 +953,8 @@ server <- function(input, output, session) {
               style = "solid"
             ),
             locations = list(cells_body(), cells_stub())
-          )
+          ) %>%
+          cols_width(everything() ~ pct(14))
         
         for (i in names(day_data)[names(day_data) %in% groups]) {
           daily_table <- daily_table %>%

@@ -117,5 +117,4 @@ withProgress(message = 'Data update in progress',
                  "INSERT OR REPLACE INTO settings (name, value) VALUES ('last_update', ?)",
                  params = list(Sys.time())
                )
-               
              })

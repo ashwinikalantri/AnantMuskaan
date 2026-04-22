@@ -17,6 +17,7 @@ library(tibble)
 library(plotly)
 
 ver <- "v1.3.4"
+DATA_START_DATE <- as.Date("2025-07-01")
 
 conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
 
@@ -52,60 +53,15 @@ dbExecute(
 
 ui <- page_fluid(
   card(card_header(h4("Anant Muskaan")),
-       layout_columns(
-         value_box( 
-           title = "Total Schools", 
-           textOutput("sch_no"),
-           uiOutput("sch_ur"),
-           uiOutput("sch_type"),
-           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
-           uiOutput("sch_ent_yd"),
-           showcase = plotlyOutput("graph_sch"), 
-           showcase_layout = "bottom",
-           #showcase = icon("school"),
-           theme = "primary" 
-         ),
-         value_box( 
-           title = textOutput("block_name_1"),
-           textOutput("sch_no_b1"),
-           uiOutput("sch_ur_b1"),
-           uiOutput("sch_type_b1"),
-           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
-           uiOutput("sch_ent_yd_b1"),
-           showcase = plotlyOutput("graph_sch_b1"), 
-           showcase_layout = "bottom",
-           theme = "teal" 
-         ),
-         value_box( 
-           title = textOutput("block_name_2"),
-           textOutput("sch_no_b2"),
-           uiOutput("sch_ur_b2"),
-           uiOutput("sch_type_b2"),
-           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
-           uiOutput("sch_ent_yd_b2"),
-           showcase = plotlyOutput("graph_sch_b2"), 
-           showcase_layout = "bottom",
-           theme = "teal" 
-         ),
-         value_box( 
-           title = textOutput("block_name_3"),
-           textOutput("sch_no_b3"),
-           uiOutput("sch_ur_b3"),
-           uiOutput("sch_type_b3"),
-           paste0("MyCap on ",format(Sys.Date()-1,"%d %b")),
-           uiOutput("sch_ent_yd_b3"),
-           showcase = plotlyOutput("graph_sch_b3"), 
-           showcase_layout = "bottom",
-           theme = "teal" 
-         )
-       ),
+       # Block summary cards rendered dynamically based on actual block count
+       uiOutput("summary_cards"),
        layout_columns(
          card(checkboxGroupInput(
            "block_list",
            "Select Block",
            inline = T,
            choices = NA
-         )), 
+         )),
     card(
       checkboxGroupInput(
         "area_type_list",
@@ -136,7 +92,7 @@ ui <- page_fluid(
         label = "Select Date",
         value = Sys.Date() - 1,
         max = Sys.Date() - 1,
-        min = as.Date("2025-07-01"),
+        min = DATA_START_DATE,
         format = "dd M yyyy"
       )
     ), card(gt_output("daily_table"))),
@@ -149,7 +105,7 @@ ui <- page_fluid(
           start = Sys.Date() - 7,
           end = Sys.Date() - 1,
           max = Sys.Date() - 1,
-          min = as.Date("2025-07-01"),
+          min = DATA_START_DATE,
           weekstart = 1,
           format = "dd M yyyy"
         )
@@ -167,10 +123,10 @@ ui <- page_fluid(
         dateRangeInput(
           inputId = "school_range_date",
           label = "Select Date Range",
-          start = as.Date("2025-07-01"),
+          start = DATA_START_DATE,
           end = Sys.Date() - 1,
           max = Sys.Date() - 1,
-          min = as.Date("2025-07-01"),
+          min = DATA_START_DATE,
           weekstart = 1,
           format = "dd M yyyy"
         )
@@ -182,25 +138,21 @@ ui <- page_fluid(
           options = list(dropdownParent = 'body')
         )
       )),
-      # navset_card_tab(nav_panel(
-      #   "Entries",
         layout_columns(
-          value_box( 
-            title = "No of Entries", 
+          value_box(
+            title = "No of Entries",
             textOutput("sch_ent"),
             showcase = icon("calendar"),
-            theme = "primary" 
+            theme = "primary"
             ),
-          value_box( 
-            title = "No of Activities", 
+          value_box(
+            title = "No of Activities",
             textOutput("sch_act"),
             showcase = icon("tooth"),
-            theme = "teal" 
+            theme = "teal"
           )
         ),
-        #card(uiOutput("sch_ent")),
         DTOutput("school_ent_table", height = "100%")
-      #))
     ),
     nav_panel("Monthly Data", card(
       airDatepickerInput(
@@ -210,19 +162,51 @@ ui <- page_fluid(
         minView = "months",
         value = Sys.Date() - 1,
         max = Sys.Date() - 1,
-        min = as.Date("2025-07-01"),
+        min = DATA_START_DATE,
         dateFormat = "MMM yyyy",
         autoClose = TRUE
       )
-    ), card(gt_output("monthly_table"))),
-    card_footer(uiOutput("footer"))
+    ), card(gt_output("monthly_table")))
   ),
+  card(card_footer(uiOutput("footer"))),
   id = "tab"
 )
 
+# Helper: sparkline plotly chart for a pre-grouped data frame with task_schedule_date and n
+make_sparkline <- function(data) {
+  plot_ly(data, height = 100) |>
+    add_lines(
+      x = ~task_schedule_date,
+      y = ~n,
+      color = I("#ffffff"),
+      fill = "tozeroy",
+      alpha = 0.75
+    ) %>%
+    layout(
+      xaxis = list(visible = FALSE, showgrid = FALSE),
+      yaxis = list(visible = FALSE, showgrid = FALSE),
+      hovermode = "x",
+      margin = list(t = 0, r = 0, l = 0, b = 0),
+      paper_bgcolor = "transparent",
+      plot_bgcolor = "transparent"
+    ) %>%
+    config(displayModeBar = F)
+}
+
+# Helper: badge row UI for area/type/entry breakdowns
+make_badge_row <- function(labels_values, badge_class) {
+  tags$div(
+    style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
+    tagList(lapply(names(labels_values), function(nm) {
+      val <- labels_values[[nm]]
+      tags$span(class = paste0("badge ", badge_class), paste0(nm, ": ", if (is.na(val)) 0 else val))
+    }))
+  )
+}
+
 server <- function(input, output, session) {
   api_key <- reactiveVal(NULL)
-  
+
   prompt_for_key <- function() {
     shinyalert(
       inputPlaceholder = "API Key",
@@ -237,7 +221,7 @@ server <- function(input, output, session) {
       session = session
     )
   }
-  
+
   save_key_and_proceed <- function(key_from_input) {
     if (!is.null(key_from_input) &&
         key_from_input != FALSE &&
@@ -248,23 +232,23 @@ server <- function(input, output, session) {
         "INSERT OR REPLACE INTO settings (name, value) VALUES ('api_key', ?)",
         params = list(key_from_input)
       )
-      
+
       api_key(key_from_input)
-      
+
       shinyalert("Success!", "API Key has been saved.", type = "success")
     } else {
       shinyalert("Cancelled",
                  "You must provide a correct API key to use the app.",
                  type = "error")
-      
+
       if (isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'"))) {
         prompt_for_key()
       }
     }
   }
-  
+
   key_from_db <- dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'api_key'")
-  
+
   if (nrow(key_from_db) > 0) {
     message("API key found in database.")
     api_key(key_from_db$value[1])
@@ -272,13 +256,12 @@ server <- function(input, output, session) {
     message("API key not found. Prompting user.")
     prompt_for_key()
   }
-  
+
   observeEvent(api_key(), {
     req(api_key())
-    conn <- dbConnect(RSQLite::SQLite(), "anantmuskaan.sqlite")
-    
+
     source("data_read.R")
-    
+
     if (!isTruthy(dbGetQuery(conn, "SELECT value FROM settings WHERE name = 'last_update'")$value)) {
       source("data_refresh.R", local = TRUE)
     } else {
@@ -291,9 +274,9 @@ server <- function(input, output, session) {
         source("data_refresh.R", local = TRUE)
       }
     }
-    
-    
-    
+
+
+
     ## Update inputs ####
     observe({
       updateCheckboxGroupInput(
@@ -302,10 +285,10 @@ server <- function(input, output, session) {
         choices = unique(d1$block),
         selected = unique(d1$block)
       )
-      
+
     })
-    
-    
+
+
     output$footer <- renderUI({
       if (difftime(Sys.time(), as.POSIXct(as.numeric(
         dbGetQuery(
@@ -317,11 +300,17 @@ server <- function(input, output, session) {
       } else {
         color <- "#50C878" # green
       }
-      
-      date_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest")$published_at
-      ver_gh <- gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest")$name
-      ver_update <- compareVersion(str_replace(ver_gh, "v", ""), str_replace(ver, "v", ""))
-      
+
+      gh_release <- tryCatch(
+        gh(endpoint = "https://api.github.com/repos/ashwinikalantri/anantmuskaan/releases/latest"),
+        error = function(e) NULL
+      )
+      date_gh   <- if (!is.null(gh_release)) gh_release$published_at else NA
+      ver_gh    <- if (!is.null(gh_release)) gh_release$name         else ver
+      ver_update <- if (!is.null(gh_release))
+        compareVersion(str_replace(ver_gh, "v", ""), str_replace(ver, "v", ""))
+      else 0
+
       p(
         style = paste0('text-align:center;'),
         tooltip(
@@ -400,11 +389,11 @@ server <- function(input, output, session) {
         )
       )
     })
-    
+
     observeEvent(input$updateAPI, {
       prompt_for_key()
     })
-    
+
     observeEvent(input$updData, {
       shinyalert::shinyalert(
         title = "Refresh Data",
@@ -450,7 +439,7 @@ server <- function(input, output, session) {
         map(~ deframe(select(., school, ID)))
       updateSelectInput(inputId = "selectSchool", choices = choices_school)
     })
-    
+
     ## Summary: Summary Card Values ####
     card_data <- d1 %>%
       group_by(block) %>%
@@ -480,227 +469,99 @@ server <- function(input, output, session) {
           summarise(entry = n(), act = sum(brush_activity)),
         by = join_by(block)
       )
-    
+
+    # Pre-compute per-block daily counts for sparklines
+    d2_by_block <- d2 %>%
+      left_join(d1, by = join_by(record_id)) %>%
+      group_by(block, task_schedule_date) %>%
+      count()
+
+    ## Summary: Total card outputs ####
     output$sch_no <- renderText({
       sum(card_data$n)
     })
-    
+
     output$sch_ur <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-info", paste0("Urban: ",sum(card_data$U))),
-               tags$span(class = "badge bg-info", paste0("Rural: ",sum(card_data$R)))
-      )
+      make_badge_row(c("Urban" = sum(card_data$U, na.rm = TRUE),
+                       "Rural"  = sum(card_data$R, na.rm = TRUE)), "bg-info")
     })
-    
+
     output$sch_type <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-info", paste0("Gov: ",sum(card_data$GS))),
-               tags$span(class = "badge bg-info", paste0("Aided: ",sum(card_data$GA))),
-               tags$span(class = "badge bg-info", paste0("Pvt: ",sum(card_data$PS))),
-      )
+      make_badge_row(c("Gov"   = sum(card_data$GS, na.rm = TRUE),
+                       "Aided" = sum(card_data$GA, na.rm = TRUE),
+                       "Pvt"   = sum(card_data$PS, na.rm = TRUE)), "bg-info")
     })
-      
-    
-    #Block 1
-    output$block_name_1 <- renderText({
-      card_data[1,]$block
-    })
-    output$sch_no_b1 <- renderText({
-      card_data[1,]$n
-    })
-    
-    output$sch_ur_b1 <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-success", paste0("Urban: ",card_data[1,]$U)),
-               tags$span(class = "badge bg-success", paste0("Rural: ",card_data[1,]$R))
-      )
-    })
-    
-    output$sch_type_b1 <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-success", paste0("Gov: ",card_data[1,]$GS)),
-               tags$span(class = "badge bg-success", paste0("Aided: ",card_data[1,]$GA)),
-               tags$span(class = "badge bg-success", paste0("Pvt: ",card_data[1,]$PS)),
-      )
-    })
-    
-    
-    #Block 2
-    output$block_name_2 <- renderText({
-      card_data[2,]$block
-    })
-    output$sch_no_b2 <- renderText({
-      card_data[2,]$n
-    })
-    
-    output$sch_ur_b2 <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-success", paste0("Urban: ",card_data[2,]$U)),
-               tags$span(class = "badge bg-success", paste0("Rural: ",card_data[2,]$R))
-      )
-    })
-    
-    output$sch_type_b2 <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-success", paste0("Gov: ",card_data[2,]$GS)),
-               tags$span(class = "badge bg-success", paste0("Aided: ",card_data[2,]$GA)),
-               tags$span(class = "badge bg-success", paste0("Pvt: ",card_data[2,]$PS)),
-      )
-    })
-    
-    #Block 3
-    output$block_name_3 <- renderText({
-      card_data[3,]$block
-    })
-    output$sch_no_b3 <- renderText({
-      card_data[3,]$n
-    })
-    
-    output$sch_ur_b3 <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-success", paste0("Urban: ",card_data[3,]$U)),
-               tags$span(class = "badge bg-success", paste0("Rural: ",card_data[3,]$R))
-      )
-    })
-    
-    output$sch_type_b3 <- renderUI({
-      tags$div(style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-               tags$span(class = "badge bg-success", paste0("Gov: ",card_data[3,]$GS)),
-               tags$span(class = "badge bg-success", paste0("Aided: ",card_data[3,]$GA)),
-               tags$span(class = "badge bg-success", paste0("Pvt: ",card_data[3,]$PS)),
-      )
-    })
-    
-    # Activities and entries
+
     output$sch_ent_yd <- renderUI({
-      tags$div(
-        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-        tags$span(class = "badge bg-info", paste0("Entries: ", sum(card_data$entry))),
-        tags$span(class = "badge bg-info", paste0("Activities: ", sum(card_data$act)))
-      )
+      make_badge_row(c("Entries"    = sum(card_data$entry, na.rm = TRUE),
+                       "Activities" = sum(card_data$act,   na.rm = TRUE)), "bg-info")
     })
-    
-    output$sch_ent_yd_b1 <- renderUI({
-      tags$div(
-        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-        tags$span(class = "badge bg-success", paste0("Entries: ", card_data[1,]$entry)),
-        tags$span(class = "badge bg-success", paste0("Activities: ", card_data[1,]$act))
-      )
-    })
-    
-    output$sch_ent_yd_b2 <- renderUI({
-      tags$div(
-        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-        tags$span(class = "badge bg-success", paste0("Entries: ", card_data[2,]$entry)),
-        tags$span(class = "badge bg-success", paste0("Activities: ", card_data[2,]$act))
-      )
-    })
-    
-    output$sch_ent_yd_b3 <- renderUI({
-      tags$div(
-        style = "display: flex; justify-content: start; gap: 10px; padding: 5px;",
-        tags$span(class = "badge bg-success", paste0("Entries: ", card_data[3,]$entry)),
-        tags$span(class = "badge bg-success", paste0("Activities: ", card_data[3,]$act))
-      )
-    })
-    
-    output$graph_sch_b1 <- renderPlotly({
-      
-      plot_ly(d2 %>% 
-                left_join(d1,by = join_by(record_id)) %>% 
-                group_by(block,task_schedule_date) %>% 
-                count() %>% 
-                filter(block == card_data[1,]$block) %>% 
-                select(-block), height = 100) |> 
-        add_lines( 
-          x = ~task_schedule_date, 
-          y = ~n, 
-          color = I("#ffffff"), 
-          fill = "tozeroy",
-          alpha = 0.75
-        ) %>% 
-        layout( 
-          xaxis = list(visible = FALSE, showgrid = FALSE), 
-          yaxis = list(visible = FALSE, showgrid = FALSE), 
-          hovermode = "x", 
-          margin = list(t = 0, r = 0, l = 0, b = 0), 
-          paper_bgcolor = "transparent", 
-          plot_bgcolor = "transparent" ) %>% 
-        config(displayModeBar = F)
-    })
-    
-    output$graph_sch_b2 <- renderPlotly({
-      
-      plot_ly(d2 %>% 
-                left_join(d1,by = join_by(record_id)) %>% 
-                group_by(block,task_schedule_date) %>% 
-                count() %>% 
-                filter(block == card_data[2,]$block) %>% 
-                select(-block), height = 100) |> 
-        add_lines( 
-          x = ~task_schedule_date, 
-          y = ~n, 
-          color = I("#ffffff"), 
-          fill = "tozeroy",
-          alpha = 0.75
-        ) %>% 
-        layout( 
-          xaxis = list(visible = FALSE, showgrid = FALSE), 
-          yaxis = list(visible = FALSE, showgrid = FALSE), 
-          hovermode = "x", 
-          margin = list(t = 0, r = 0, l = 0, b = 0), 
-          paper_bgcolor = "transparent", 
-          plot_bgcolor = "transparent" ) %>% 
-        config(displayModeBar = F)
-    })
-    
-    output$graph_sch_b3 <- renderPlotly({
-      
-      plot_ly(d2 %>% 
-                left_join(d1,by = join_by(record_id)) %>% 
-                group_by(block,task_schedule_date) %>% 
-                count() %>% 
-                filter(block == card_data[3,]$block) %>% 
-                select(-block), height = 100) |> 
-        add_lines( 
-          x = ~task_schedule_date, 
-          y = ~n, 
-          color = I("#ffffff"), 
-          fill = "tozeroy",
-          alpha = 0.75
-        ) %>% 
-        layout( 
-          xaxis = list(visible = FALSE, showgrid = FALSE), 
-          yaxis = list(visible = FALSE, showgrid = FALSE), 
-          hovermode = "x", 
-          margin = list(t = 0, r = 0, l = 0, b = 0), 
-          paper_bgcolor = "transparent", 
-          plot_bgcolor = "transparent" ) %>% 
-        config(displayModeBar = F)
-    })
-    
+
     output$graph_sch <- renderPlotly({
-      
-      plot_ly(d2 %>% 
-                group_by(task_schedule_date) %>% 
-                count(), height = 100) |> 
-        add_lines( 
-          x = ~task_schedule_date, 
-          y = ~n, 
-          color = I("#ffffff"), 
-          fill = "tozeroy",
-          alpha = 0.75
-        ) %>% 
-        layout( 
-          xaxis = list(visible = FALSE, showgrid = FALSE), 
-          yaxis = list(visible = FALSE, showgrid = FALSE), 
-          hovermode = "x", 
-          margin = list(t = 0, r = 0, l = 0, b = 0), 
-          paper_bgcolor = "transparent", 
-          plot_bgcolor = "transparent" ) %>% 
-        config(displayModeBar = F)
+      make_sparkline(d2 %>% group_by(task_schedule_date) %>% count())
     })
-    
+
+    ## Summary: Dynamic block cards (one per block, regardless of count) ####
+    blocks <- card_data$block
+
+    output$summary_cards <- renderUI({
+      total_card <- value_box(
+        title = "Total Schools",
+        textOutput("sch_no"),
+        uiOutput("sch_ur"),
+        uiOutput("sch_type"),
+        paste0("MyCap on ", format(Sys.Date()-1, "%d %b")),
+        uiOutput("sch_ent_yd"),
+        showcase = plotlyOutput("graph_sch"),
+        showcase_layout = "bottom",
+        theme = "primary"
+      )
+
+      block_cards <- lapply(seq_along(blocks), function(i) {
+        value_box(
+          title = textOutput(paste0("block_name_", i)),
+          textOutput(paste0("sch_no_b", i)),
+          uiOutput(paste0("sch_ur_b", i)),
+          uiOutput(paste0("sch_type_b", i)),
+          paste0("MyCap on ", format(Sys.Date()-1, "%d %b")),
+          uiOutput(paste0("sch_ent_yd_b", i)),
+          showcase = plotlyOutput(paste0("graph_sch_b", i)),
+          showcase_layout = "bottom",
+          theme = "teal"
+        )
+      })
+
+      do.call(layout_columns, c(list(total_card), block_cards))
+    })
+
+    # Register output renderers for each block
+    lapply(seq_along(blocks), function(i) {
+      local({
+        bi    <- i
+        bname <- blocks[bi]
+        row   <- card_data[bi, ]
+
+        output[[paste0("block_name_", bi)]] <- renderText({ bname })
+        output[[paste0("sch_no_b",    bi)]] <- renderText({ row$n })
+
+        output[[paste0("sch_ur_b", bi)]] <- renderUI({
+          make_badge_row(c("Urban" = row$U, "Rural" = row$R), "bg-success")
+        })
+
+        output[[paste0("sch_type_b", bi)]] <- renderUI({
+          make_badge_row(c("Gov" = row$GS, "Aided" = row$GA, "Pvt" = row$PS), "bg-success")
+        })
+
+        output[[paste0("sch_ent_yd_b", bi)]] <- renderUI({
+          make_badge_row(c("Entries" = row$entry, "Activities" = row$act), "bg-success")
+        })
+
+        output[[paste0("graph_sch_b", bi)]] <- renderPlotly({
+          make_sparkline(d2_by_block %>% filter(block == bname) %>% select(-block))
+        })
+      })
+    })
+
     ## Data: Monthly####
     data_monthly <- reactive({
       d2 %>%
@@ -745,7 +606,7 @@ server <- function(input, output, session) {
           ~ replace_na(., 0)
         ))
     })
-    
+
     ##Data: School Ent ####
     school_ent_date_range <- reactive({
       d2 %>%
@@ -762,11 +623,6 @@ server <- function(input, output, session) {
                brush_activity,
                participants) %>%
         mutate(brush_activity = case_when(brush_activity == 1 ~ 1, brush_activity == 2 ~ 0)) %>%
-        # summarise(
-        #   entry = n(),
-        #   participants = sum(as.numeric(participants), na.rm = T),
-        #   activity = sum(brush_activity, na.rm = T)
-        # ) %>%
         right_join(
           d1 %>%
             dplyr::select(record_id, school, block, area_type, school_type),
@@ -791,7 +647,7 @@ server <- function(input, output, session) {
           ~ replace_na(., 0)
         ))
     })
-    
+
     ##Data: Date Range ####
     data_date_range <- reactive({
       d2 %>%
@@ -836,7 +692,7 @@ server <- function(input, output, session) {
           ~ replace_na(., 0)
         ))
     })
-    
+
     ## Table: Single Date ####
     output$daily_table <- render_gt({
       validate(
@@ -850,11 +706,11 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      
+
       groups <- expand.grid(input$area_type_list, input$school_type_list) %>%
         mutate(groups = paste0(Var1, "_", Var2)) %>%
         .$groups
-      
+
       day_data <- d2 %>%
         filter(task_schedule_date == input$daily_date) %>%
         group_by(record_id) %>%
@@ -899,7 +755,7 @@ server <- function(input, output, session) {
         )), ~ .),
         ) %>%
         filter(per$Visits == .25)
-      
+
       if (nrow(day_data) > 0) {
         day_data <- day_data %>%
           select(block) %>%
@@ -910,8 +766,8 @@ server <- function(input, output, session) {
                       .$per %>%
                       select(-Visits) %>%
                       rename_with(~ paste0(.x, "_P"), everything()))
-        
-        
+
+
         daily_table <- day_data %>%
           gt(rowname_col = "block") %>%
           tab_header(
@@ -955,7 +811,7 @@ server <- function(input, output, session) {
             locations = list(cells_body(), cells_stub())
           ) %>%
           cols_width(everything() ~ pct(14))
-        
+
         for (i in names(day_data)[names(day_data) %in% groups]) {
           daily_table <- daily_table %>%
             cols_merge(columns = starts_with(i), pattern = "{1} ({2})")
@@ -964,10 +820,10 @@ server <- function(input, output, session) {
         daily_table <- data.frame() %>%
           gt()
       }
-      
+
       daily_table
     })
-    
+
     ## Table: Range Entries####
     output$range_ent_table <- render_gt({
       validate(
@@ -989,7 +845,7 @@ server <- function(input, output, session) {
         ) %>%
           mutate(groups = paste0(Var1, "_", Var2, "_", Var3)) %>%
           .$groups
-        
+
         range_data <- data_date_range() %>%
           mutate(lab = "entry") %>%
           group_by(lab, block, area_type, school_type, entry) %>%
@@ -1005,14 +861,14 @@ server <- function(input, output, session) {
             n = across(any_of(groups_range), ~ .),
             entry = entry
           )
-        
+
         range_data <- range_data %>%
           select(block, entry) %>%
           bind_cols(range_data %>% .$n) %>%
           bind_cols(range_data %>% .$per %>%
                       rename_with(~ paste0(.x, "_P"), everything()))
-        
-        
+
+
         range_table <- range_data %>%
           arrange(entry) %>%
           group_by(block) %>%
@@ -1027,7 +883,7 @@ server <- function(input, output, session) {
             )
           ) %>%
           tab_spanner(columns = starts_with("R_"), label = "Rural") %>%
-          tab_spanner(columns = starts_with("U_"), label = "Urbal") %>%
+          tab_spanner(columns = starts_with("U_"), label = "Urban") %>%
           sub_missing(missing_text = 0) %>%
           fmt_percent(columns = ends_with("_P")) %>%
           tab_style(style = cell_text(weight = "bold", align = "center"),
@@ -1060,7 +916,32 @@ server <- function(input, output, session) {
             locations = list(cells_body(), cells_stub())
           ) %>%
           cols_width(contains("_") ~ pct(15))
-        
+
+        count_cols_ent <- names(range_data)[names(range_data) %in% groups_range]
+        pct_cols_ent   <- paste0(count_cols_ent, "_P")
+
+        range_table <- range_table %>%
+          summary_rows(
+            groups = TRUE,
+            columns = all_of(count_cols_ent),
+            fns = list("Block Total" = ~sum(., na.rm = TRUE)),
+            fmt = list(~ fmt_number(., decimals = 0))
+          ) %>%
+          summary_rows(
+            groups = TRUE,
+            columns = all_of(pct_cols_ent),
+            fns = list("Block Total" = ~1)
+          ) %>%
+          grand_summary_rows(
+            columns = all_of(count_cols_ent),
+            fns = list("Grand Total" = ~sum(., na.rm = TRUE)),
+            fmt = list(~ fmt_number(., decimals = 0))
+          ) %>%
+          grand_summary_rows(
+            columns = all_of(pct_cols_ent),
+            fns = list("Grand Total" = ~1)
+          )
+
         for (i in names(range_data)[names(range_data) %in% groups_range]) {
           range_table <- range_table %>%
             cols_merge(columns = starts_with(i), pattern = "{1} ({2})")
@@ -1070,7 +951,7 @@ server <- function(input, output, session) {
       }
       range_table
     })
-    
+
     ## Table: Range Activities ####
     output$range_act_table <- render_gt({
       validate(
@@ -1084,7 +965,7 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      
+
       if (nrow(data_date_range()) > 0) {
         groups_range <- expand.grid(
           input$area_type_list,
@@ -1093,7 +974,7 @@ server <- function(input, output, session) {
         ) %>%
           mutate(groups = paste0(Var1, "_", Var2, "_", Var3)) %>%
           .$groups
-        
+
         range_data_act = data_date_range() %>%
           mutate(lab = "activity") %>%
           group_by(lab, block, area_type, school_type, activity) %>%
@@ -1121,7 +1002,7 @@ server <- function(input, output, session) {
             n = across(any_of(groups_range), ~ .),
             activity = activity
           )
-        
+
         range_data_act <- range_data_act %>%
           select(block, activity) %>%
           bind_cols(range_data_act %>% .$n) %>%
@@ -1131,7 +1012,7 @@ server <- function(input, output, session) {
           relocate(ends_with("_activity_P"), .after = last_col()) %>%
           relocate(ends_with("_participants"), .after = last_col()) %>%
           relocate(ends_with("_participants_P"), .after = last_col())
-        
+
         range_act_table <- range_data_act %>%
           arrange(activity) %>%
           group_by(block) %>%
@@ -1146,7 +1027,7 @@ server <- function(input, output, session) {
             )
           ) %>%
           tab_spanner(columns = starts_with("R_"), label = "Rural") %>%
-          tab_spanner(columns = starts_with("U_"), label = "Urbal") %>%
+          tab_spanner(columns = starts_with("U_"), label = "Urban") %>%
           fmt_percent(columns = ends_with("_P")) %>%
           sub_missing(missing_text = 0) %>%
           cols_label(
@@ -1179,14 +1060,39 @@ server <- function(input, output, session) {
             locations = list(cells_body(), cells_stub())
           ) %>%
           cols_width(contains("_") ~ pct(15))
-        
+
+        range_act_count_cols <- names(range_data_act)[names(range_data_act) %in% groups_range]
+        range_act_pct_cols   <- paste0(range_act_count_cols, "_P")
+
+        range_act_table <- range_act_table %>%
+          summary_rows(
+            groups = TRUE,
+            columns = all_of(range_act_count_cols),
+            fns = list("Block Total" = ~sum(., na.rm = TRUE)),
+            fmt = list(~ fmt_number(., decimals = 0))
+          ) %>%
+          summary_rows(
+            groups = TRUE,
+            columns = all_of(range_act_pct_cols),
+            fns = list("Block Total" = ~1)
+          ) %>%
+          grand_summary_rows(
+            columns = all_of(range_act_count_cols),
+            fns = list("Grand Total" = ~sum(., na.rm = TRUE)),
+            fmt = list(~ fmt_number(., decimals = 0))
+          ) %>%
+          grand_summary_rows(
+            columns = all_of(range_act_pct_cols),
+            fns = list("Grand Total" = ~1)
+          )
+
         cols <- word(
           names(range_data_act)[names(range_data_act) %in% groups_range],
           start = 1,
           end = -2,
           sep = "_"
         ) %>% unique()
-        
+
         for (i in cols) {
           range_act_table <- range_act_table %>%
             cols_merge(columns = starts_with(i), pattern = "{1} ({2})<br><small>{3} Participants ({4})</small>")
@@ -1194,10 +1100,10 @@ server <- function(input, output, session) {
       } else {
         range_act_table <- data.frame() %>% gt()
       }
-      
+
       range_act_table
     })
-    
+
     ## Table: School Entries ####
     output$school_ent_table <- renderDT({
       validate(
@@ -1211,8 +1117,8 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      
-      
+
+
       if (nrow(school_ent_date_range()) > 0) {
         school_ent_table <- school_ent_date_range() %>%
           select(task_schedule_date, brush_activity) %>%
@@ -1221,7 +1127,6 @@ server <- function(input, output, session) {
             brush_activity == 1 ~ "Done"
           )) %>%
           mutate(task_schedule_date = format(task_schedule_date, "%d %b %Y")) %>%
-          #group_by(block) %>%
           datatable(
             rownames = FALSE,
             colnames = c('Date', "Activity"),
@@ -1248,7 +1153,7 @@ server <- function(input, output, session) {
       }
       school_ent_table
     }, server = FALSE)
-    
+
     ## Table: School Entry Cards ####
     output$sch_ent <- renderText({
       validate(
@@ -1262,20 +1167,20 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      
+
       if (nrow(school_ent_date_range()) > 0) {
         sch_ent_val <- school_ent_date_range() %>%
-          filter(!is.na(task_schedule_date)) %>% 
+          filter(!is.na(task_schedule_date)) %>%
           summarise(N = n()) %>% .$N
       } else {
         sch_ent_val <- 0
       }
-      
+
       sch_ent_val
-    
+
   })
-  
-    
+
+
     output$sch_act <- renderText({
       validate(
         need(input$block_list, "Please select at least one Block."),
@@ -1288,18 +1193,18 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      
+
       if (nrow(school_ent_date_range()) > 0) {
         sch_act_val <- school_ent_date_range() %>%
           summarise(N = sum(brush_activity)) %>% .$N
       } else {
         sch_act_val <- 0
       }
-      
+
       sch_act_val
-      
+
     })
-  
+
     ## Table: Range No Entries ####
   output$range_noent_table <- renderDT({
     validate(
@@ -1310,8 +1215,8 @@ server <- function(input, output, session) {
         "Please select at least one School type."
       )
     )
-    
-    
+
+
     if (nrow(data_date_range()) > 0) {
       no_ent_table <- data_date_range() %>%
         filter(activity == 0) %>%
@@ -1344,8 +1249,8 @@ server <- function(input, output, session) {
     }
     no_ent_table
   }, server = FALSE)
-  
-    ## Table: Range No Entries ####
+
+    ## Table: Range Schools with Entries ####
     output$range_school_ent_table <- renderDT({
       validate(
         need(input$block_list, "Please select at least one Block."),
@@ -1355,8 +1260,8 @@ server <- function(input, output, session) {
           "Please select at least one School type."
         )
       )
-      
-      
+
+
       if (nrow(data_date_range()) > 0) {
         ent_table <- data_date_range() %>%
           filter(entry != 0) %>%
@@ -1389,7 +1294,7 @@ server <- function(input, output, session) {
       }
       ent_table
     }, server = FALSE)
-    
+
   ## Table: Monthly ####
   output$monthly_table <- render_gt({
     validate(
@@ -1408,7 +1313,7 @@ server <- function(input, output, session) {
       ) %>%
         mutate(groups = paste0(Var1, "_", Var2, "_", Var3)) %>%
         .$groups
-      
+
       month_data <- data_monthly() %>%
         group_by(block, area_type, school_type) %>%
         summarise(
@@ -1424,11 +1329,11 @@ server <- function(input, output, session) {
         relocate(starts_with("entry_"), .after = last_col()) %>%
         relocate(starts_with("activity_"), .after = last_col()) %>%
         relocate(starts_with("participants_"), .after = last_col())
-      
+
       month_table <- month_data %>%
         gt(rowname_col = "block") %>%
         tab_spanner(columns = contains("R_"), label = "Rural") %>%
-        tab_spanner(columns = contains("U_"), label = "Urbal") %>%
+        tab_spanner(columns = contains("U_"), label = "Urban") %>%
         cols_label(
           ends_with("_GA") ~ "Gov Aided",
           ends_with("_GS") ~ "Gov School",
@@ -1467,7 +1372,7 @@ server <- function(input, output, session) {
         tab_style(style = cell_text(weight = "bold", align = "center"),
                   locations = cells_row_groups()) %>%
         cols_align(align = "center", columns = everything())
-      
+
       for (i in unique(word(
         names(month_data)[names(month_data) %in% groups_range_m],
         start = -2,
@@ -1480,7 +1385,7 @@ server <- function(input, output, session) {
     } else {
       month_table <- data.frame() %>% gt()
     }
-    
+
     month_table
   })
 })
